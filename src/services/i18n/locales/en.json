@@ -60,11 +60,15 @@
 			"latest": "Latest",
 			"updated": "Recently Updated"
 		},
+		"downloaded": "Downloaded",
+		"cached": "Song data cached locally",
 		"lyrics": {
 			"title": "Lyrics",
 			"synced": "Synced",
 			"fetching": "Fetching lyrics...",
 			"notFound": "No lyrics found",
+			"cached": "Lyrics available locally",
+			"none": "No lyrics",
 			"error": "Failed to load lyrics",
 			"instrumental": "Instrumental",
 			"idle": "Lyrics will appear here"

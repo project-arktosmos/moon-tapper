@@ -7,6 +7,7 @@
 		setThumbnail,
 		getThumbnailKey
 	} from '$services/sticker-thumbnails.service';
+	import { stickersApi } from '$api/stickers';
 
 	const collections = manifest.collections as StickerCollection[];
 
@@ -17,6 +18,8 @@
 	let viewMode = $state<'characters' | 'sprites'>('characters');
 	let pickingChar = $state<StickerCharacter | null>(null);
 	let pickingSprites = $state<{ sprites: string[]; basePath: string } | null>(null);
+	let deletedPaths = $state(new Set<string>());
+	let deleting = $state(false);
 
 	let collection = $derived(collections[selectedCollectionIdx]);
 	let categories = $derived(collection.categories);
@@ -31,9 +34,12 @@
 	);
 
 	let filteredCharacters = $derived.by(() => {
-		if (!search) return collection.characters;
-		const q = search.toLowerCase();
-		return collection.characters.filter((c) => c.name.toLowerCase().includes(q));
+		let chars = collection.characters.filter((c) => !deletedPaths.has(`${collection.id}:${c.path}`));
+		if (search) {
+			const q = search.toLowerCase();
+			chars = chars.filter((c) => c.name.toLowerCase().includes(q));
+		}
+		return chars;
 	});
 
 	let currentSprites = $derived.by(() => {
@@ -72,6 +78,10 @@
 		return sprite.replace(/\.(png|gif)$/i, '').replace(/[_-]/g, ' ');
 	}
 
+	function collectionBase(col: StickerCollection): string {
+		return col.basePath.replace(/^\/stickers\//, '');
+	}
+
 	function getCharThumbnailUrl(char: StickerCharacter): string {
 		const key = getThumbnailKey(collection.id, char.path);
 		const override = $stickerThumbnailsStore[key];
@@ -97,7 +107,6 @@
 	function openCharacterPicker(char: StickerCharacter) {
 		pickingChar = char;
 
-		// Find the sprites for this character
 		for (const cat of categories) {
 			if (cat.subcategories) {
 				for (const sub of cat.subcategories) {
@@ -132,6 +141,7 @@
 	}
 
 	function openCharacterSprites(char: StickerCharacter) {
+		closePicker();
 		for (let ci = 0; ci < categories.length; ci++) {
 			const cat = categories[ci];
 			if (cat.subcategories) {
@@ -150,6 +160,22 @@
 				search = '';
 				return;
 			}
+		}
+	}
+
+	async function requestDelete(char: StickerCharacter) {
+		if (deleting) return;
+		deleting = true;
+		try {
+			await stickersApi.deleteCharacter(collectionBase(collection), char.path);
+			deletedPaths = new Set([...deletedPaths, `${collection.id}:${char.path}`]);
+			if (pickingChar?.path === char.path) {
+				closePicker();
+			}
+		} catch (err) {
+			console.error('Failed to delete character:', err);
+		} finally {
+			deleting = false;
 		}
 	}
 </script>
@@ -243,7 +269,6 @@
 	<!-- Content grid -->
 	<div class="flex-1 overflow-auto">
 		{#if viewMode === 'characters'}
-			<!-- Characters grid -->
 			{#if filteredCharacters.length === 0}
 				<div class="flex items-center justify-center py-12 opacity-50">
 					No characters found
@@ -251,25 +276,33 @@
 			{:else}
 				<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
 					{#each filteredCharacters as char}
-						<button
-							class="flex cursor-pointer flex-col items-center gap-1 rounded-lg bg-base-200 p-3 transition-colors hover:bg-base-300"
-							onclick={() => openCharacterPicker(char)}
-						>
-							<img
-								src={getCharThumbnailUrl(char)}
-								alt={char.name}
-								class="h-32 w-32 object-contain"
-								loading="lazy"
-							/>
-							<span class="line-clamp-2 text-center text-xs leading-tight">
-								{char.name}
-							</span>
-						</button>
+						<div class="group relative flex flex-col items-center gap-1 rounded-lg bg-base-200 p-3 transition-colors hover:bg-base-300">
+							<button
+								class="flex cursor-pointer flex-col items-center gap-1"
+								onclick={() => openCharacterPicker(char)}
+							>
+								<img
+									src={getCharThumbnailUrl(char)}
+									alt={char.name}
+									class="h-32 w-32 object-contain"
+									loading="lazy"
+								/>
+								<span class="line-clamp-2 text-center text-xs leading-tight">
+									{char.name}
+								</span>
+							</button>
+							<button
+								class="btn btn-circle btn-error btn-xs absolute top-1 right-1 opacity-0 transition-opacity group-hover:opacity-100"
+								onclick={() => requestDelete(char)}
+								title="Delete {char.name}"
+							>
+								&#x2715;
+							</button>
+						</div>
 					{/each}
 				</div>
 			{/if}
 		{:else}
-			<!-- Sprites grid -->
 			{#if currentSprites.sprites.length === 0}
 				<div class="flex items-center justify-center py-12 opacity-50">
 					No sprites found
@@ -333,6 +366,9 @@
 				<button class="btn btn-sm" onclick={() => openCharacterSprites(pickingChar!)}>
 					View all sprites
 				</button>
+				<button class="btn btn-sm btn-error" onclick={() => requestDelete(pickingChar!)}>
+					Delete character
+				</button>
 				<button class="btn btn-sm btn-ghost" onclick={closePicker}>
 					Cancel
 				</button>
@@ -340,3 +376,4 @@
 		</div>
 	</div>
 {/if}
+

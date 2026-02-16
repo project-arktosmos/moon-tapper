@@ -5,7 +5,14 @@
 	import Button from '$components/core/Button.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { beatsaverApi } from '$api/beatsaver';
+	import { beatsaverCache } from '$api/beatsaver-cache';
+	import { lyricsCache } from '$api/lyrics-cache';
 	import type { BeatSaverMap, BeatSaverDiff } from '$types/rhythm.type';
+
+	interface MapCacheStatus {
+		downloaded: boolean;
+		lyricsStatus: 'cached' | 'not_found' | 'unknown';
+	}
 
 	const dispatch = createEventDispatcher<{
 		select: { map: BeatSaverMap; difficulty: string; beatmapFilename: string };
@@ -26,6 +33,7 @@
 	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let selectedDiffs: Record<string, string> = $state({});
 	let activeCategory: BrowseCategory = $state('CURATED');
+	let cacheStatus: Record<string, MapCacheStatus> = $state({});
 
 	onMount(() => {
 		loadBrowseMaps(activeCategory);
@@ -38,12 +46,34 @@
 		try {
 			const result = await beatsaverApi.getLatestMaps(category);
 			maps = result.docs || [];
+			checkCacheStatus(maps);
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
 			maps = [];
 		} finally {
 			loading = false;
 		}
+	}
+
+	async function checkCacheStatus(loadedMaps: BeatSaverMap[]) {
+		const results: Record<string, MapCacheStatus> = {};
+		await Promise.all(
+			loadedMaps.map(async (map) => {
+				try {
+					const [downloaded, lyrics] = await Promise.all([
+						beatsaverCache.hasDownloadedMap(map.id),
+						lyricsCache.has(map.metadata.songName, map.metadata.songAuthorName)
+					]);
+					results[map.id] = {
+						downloaded,
+						lyricsStatus: lyrics === null ? 'unknown' : lyrics.hasLyrics ? 'cached' : 'not_found'
+					};
+				} catch {
+					results[map.id] = { downloaded: false, lyricsStatus: 'unknown' };
+				}
+			})
+		);
+		cacheStatus = { ...cacheStatus, ...results };
 	}
 
 	function handleSearchInput(e: Event) {
@@ -65,6 +95,7 @@
 		try {
 			const result = await beatsaverApi.searchMaps(query);
 			maps = result.docs || [];
+			checkCacheStatus(maps);
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
 			maps = [];
@@ -163,6 +194,7 @@
 				{@const diffs = getDiffs(map)}
 				{@const selected = getSelectedDiff(map)}
 				{@const version = map.versions?.[0]}
+				{@const status = cacheStatus[map.id]}
 				<div class="card card-side bg-base-200 shadow-md">
 					{#if version?.coverURL}
 						<figure class="w-24 shrink-0">
@@ -184,6 +216,23 @@
 						<div class="flex flex-wrap items-center gap-2">
 							<span class="badge badge-ghost badge-sm">{Math.round(map.metadata.bpm)} BPM</span>
 							<span class="badge badge-ghost badge-sm">{formatDuration(map.metadata.duration)}</span>
+							{#if status?.downloaded}
+								<span class="badge badge-success badge-sm gap-1" title={$_('rhythm.cached')}>
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM6.7 11.3l5-5a.7.7 0 0 0-1-1L6.2 9.8 5.3 8.9a.7.7 0 1 0-1 1l1.4 1.4a.7.7 0 0 0 1 0Z"/></svg>
+									{$_('rhythm.downloaded')}
+								</span>
+							{/if}
+							{#if status?.lyricsStatus === 'cached'}
+								<span class="badge badge-accent badge-sm gap-1" title={$_('rhythm.lyrics.cached')}>
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
+									{$_('rhythm.lyrics.title')}
+								</span>
+							{:else if status?.lyricsStatus === 'not_found'}
+								<span class="badge badge-ghost badge-sm gap-1 opacity-50" title={$_('rhythm.lyrics.notFound')}>
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
+									{$_('rhythm.lyrics.none')}
+								</span>
+							{/if}
 							{#each diffs as diff}
 								<button
 									class={classNames('badge badge-sm cursor-pointer', diffColors[diff.difficulty] || 'badge-neutral', {

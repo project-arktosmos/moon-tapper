@@ -104,7 +104,103 @@ impl Database {
                 rom_file_name TEXT NOT NULL DEFAULT ''
             );
 
-            CREATE INDEX IF NOT EXISTS idx_games_title ON games(title);",
+            CREATE INDEX IF NOT EXISTS idx_games_title ON games(title);
+
+            -- BeatSaver cache: maps
+            CREATE TABLE IF NOT EXISTS bs_maps (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                bpm REAL NOT NULL DEFAULT 0,
+                duration REAL NOT NULL DEFAULT 0,
+                song_name TEXT NOT NULL DEFAULT '',
+                song_sub_name TEXT NOT NULL DEFAULT '',
+                song_author_name TEXT NOT NULL DEFAULT '',
+                level_author_name TEXT NOT NULL DEFAULT '',
+                plays INTEGER NOT NULL DEFAULT 0,
+                downloads INTEGER NOT NULL DEFAULT 0,
+                upvotes INTEGER NOT NULL DEFAULT 0,
+                downvotes INTEGER NOT NULL DEFAULT 0,
+                score REAL NOT NULL DEFAULT 0,
+                uploaded TEXT NOT NULL DEFAULT '',
+                automapper INTEGER NOT NULL DEFAULT 0,
+                cached_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_bs_maps_song_name ON bs_maps(song_name);
+
+            -- BeatSaver cache: map versions
+            CREATE TABLE IF NOT EXISTS bs_map_versions (
+                hash TEXT PRIMARY KEY,
+                map_id TEXT NOT NULL,
+                key TEXT NOT NULL DEFAULT '',
+                state TEXT NOT NULL DEFAULT '',
+                download_url TEXT NOT NULL DEFAULT '',
+                cover_url TEXT NOT NULL DEFAULT '',
+                preview_url TEXT NOT NULL DEFAULT '',
+                FOREIGN KEY (map_id) REFERENCES bs_maps(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_bs_map_versions_map_id ON bs_map_versions(map_id);
+
+            -- BeatSaver cache: diffs per version
+            CREATE TABLE IF NOT EXISTS bs_map_diffs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                version_hash TEXT NOT NULL,
+                njs REAL NOT NULL DEFAULT 0,
+                'offset' REAL NOT NULL DEFAULT 0,
+                notes INTEGER NOT NULL DEFAULT 0,
+                bombs INTEGER NOT NULL DEFAULT 0,
+                obstacles INTEGER NOT NULL DEFAULT 0,
+                nps REAL NOT NULL DEFAULT 0,
+                characteristic TEXT NOT NULL DEFAULT '',
+                difficulty TEXT NOT NULL DEFAULT '',
+                FOREIGN KEY (version_hash) REFERENCES bs_map_versions(hash) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_bs_map_diffs_version_hash ON bs_map_diffs(version_hash);
+
+            -- BeatSaver cache: browse category ordering
+            CREATE TABLE IF NOT EXISTS bs_browse_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category TEXT NOT NULL,
+                map_id TEXT NOT NULL,
+                sort_order INTEGER NOT NULL,
+                cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+                FOREIGN KEY (map_id) REFERENCES bs_maps(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_bs_browse_category ON bs_browse_entries(category);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_bs_browse_unique ON bs_browse_entries(category, map_id);
+
+            -- BeatSaver cache: downloaded/extracted map data
+            CREATE TABLE IF NOT EXISTS bs_map_downloads (
+                map_id TEXT PRIMARY KEY,
+                info_dat TEXT NOT NULL,
+                beatmaps_json TEXT NOT NULL,
+                audio_base64 TEXT NOT NULL,
+                cover_base64 TEXT,
+                cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+                FOREIGN KEY (map_id) REFERENCES bs_maps(id) ON DELETE CASCADE
+            );
+
+            -- Lyrics cache
+            CREATE TABLE IF NOT EXISTS lyrics_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cache_key TEXT NOT NULL UNIQUE,
+                lrclib_id INTEGER,
+                track_name TEXT NOT NULL DEFAULT '',
+                artist_name TEXT NOT NULL DEFAULT '',
+                album_name TEXT NOT NULL DEFAULT '',
+                duration REAL NOT NULL DEFAULT 0,
+                instrumental INTEGER NOT NULL DEFAULT 0,
+                plain_lyrics TEXT,
+                synced_lyrics TEXT,
+                found INTEGER NOT NULL DEFAULT 1,
+                cached_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_lyrics_cache_key ON lyrics_cache(cache_key);",
         )?;
 
         // Migrate game metadata from OpenVGDB if the games table is empty and vgdb is attached

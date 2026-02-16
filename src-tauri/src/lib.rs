@@ -11,6 +11,46 @@ use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::LogicalSize;
 use tauri::Manager;
 
+/// Delete a sticker character folder from static/stickers/{collection}/{path}
+/// If the folder is already gone, just regenerates the manifest to clean up stale entries.
+#[tauri::command]
+fn sticker_delete_character(collection_base: String, character_path: String) -> Result<(), String> {
+    let project_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("Cannot resolve project root")?;
+    let stickers_dir = project_root.join("static").join("stickers");
+
+    let target = stickers_dir
+        .join(&collection_base)
+        .join(&character_path);
+
+    // Delete if the folder still exists on disk
+    if target.exists() {
+        let canonical_stickers = stickers_dir.canonicalize().map_err(|e| e.to_string())?;
+        let canonical_target = target.canonicalize().map_err(|e| e.to_string())?;
+        if !canonical_target.starts_with(&canonical_stickers) {
+            return Err("Invalid path: outside stickers directory".into());
+        }
+        if canonical_target.is_dir() {
+            std::fs::remove_dir_all(&canonical_target).map_err(|e| e.to_string())?;
+        }
+    }
+
+    // Always regenerate the manifest to clean up stale entries
+    let output = std::process::Command::new("node")
+        .arg(project_root.join("scripts").join("generate-sticker-manifest.js"))
+        .current_dir(project_root)
+        .output()
+        .map_err(|e| format!("Failed to run manifest generator: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Manifest generation failed: {}", stderr));
+    }
+
+    Ok(())
+}
+
 /// Execute a SELECT query and return results
 /// TypeScript assembles the SQL queries and types, Rust just executes them
 #[tauri::command]
@@ -32,7 +72,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             db_query,
             db_execute,
-            beatsaver::beatsaver_download
+            beatsaver::beatsaver_download,
+            sticker_delete_character
         ]);
 
     #[cfg(desktop)]

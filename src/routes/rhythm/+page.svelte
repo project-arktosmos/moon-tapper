@@ -115,7 +115,7 @@
 			const version = selectedMap.versions?.[0];
 			if (!version) throw new Error('No version available');
 
-			const extracted = await beatsaverApi.downloadMap(version.downloadURL);
+			const extracted = await beatsaverApi.downloadMap(version.downloadURL, selectedMap.id);
 
 			loadingProgress = $_('rhythm.parsing');
 			mapInfo = beatsaverAdapter.parseInfoDat(extracted.info_dat);

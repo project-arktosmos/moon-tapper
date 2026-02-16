@@ -1,6 +1,7 @@
 import { writable, get, type Writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { LrcLibResponse, Lyrics, LyricsState, SyncedLyricLine } from '$types/lyrics.type';
+import { lyricsCache } from '$api/lyrics-cache';
 
 const LRCLIB_API_BASE = 'https://lrclib.net/api';
 const USER_AGENT = 'PokemonCardioCompanion/1.0.0 (https://github.com/arktosmos)';
@@ -27,12 +28,33 @@ class LyricsService {
 
 		const cacheKey = this.getCacheKey(trackName, artistName);
 
-		const cached = this.cache.get(cacheKey);
-		if (cached) {
-			this.store.set({ status: 'success', lyrics: cached, error: null });
+		// L1: in-memory cache
+		const memCached = this.cache.get(cacheKey);
+		if (memCached) {
+			this.store.set({ status: 'success', lyrics: memCached, error: null });
 			return;
 		}
 
+		// L2: SQLite cache
+		try {
+			const dbCached = await lyricsCache.get(cacheKey);
+			if (dbCached !== null) {
+				if (!dbCached.found) {
+					this.store.set({ status: 'not_found', lyrics: null, error: null });
+					return;
+				}
+				if (dbCached.data) {
+					const lyrics = this.parseResponse(dbCached.data);
+					this.cache.set(cacheKey, lyrics);
+					this.store.set({ status: 'success', lyrics, error: null });
+					return;
+				}
+			}
+		} catch (e) {
+			console.error('Lyrics DB cache error:', e);
+		}
+
+		// L3: API fetch
 		this.store.update((s) => ({ ...s, status: 'loading', error: null }));
 
 		try {
@@ -47,6 +69,7 @@ class LyricsService {
 			});
 
 			if (response.status === 404) {
+				lyricsCache.saveNotFound(cacheKey, trackName, artistName ?? 'unknown').catch(console.error);
 				this.store.set({ status: 'not_found', lyrics: null, error: null });
 				return;
 			}
@@ -58,6 +81,7 @@ class LyricsService {
 			const data: LrcLibResponse = await response.json();
 			const lyrics = this.parseResponse(data);
 
+			lyricsCache.save(cacheKey, data).catch(console.error);
 			this.cache.set(cacheKey, lyrics);
 			this.store.set({ status: 'success', lyrics, error: null });
 		} catch (error) {
