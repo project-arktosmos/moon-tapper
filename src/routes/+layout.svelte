@@ -37,7 +37,7 @@
 				</label>
 			</div>
 			<div class="flex-1">
-				<span class="text-xl font-bold">Tauri Svelte</span>
+				<span class="text-xl font-bold">Moon Trainer</span>
 			</div>
 		</div>
 
@@ -51,7 +51,7 @@
 		<label for="sidebar-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
 		<aside class="bg-base-200 min-h-full w-64 p-4">
 			<div class="mb-6">
-				<h2 class="text-xl font-bold">Tauri Svelte</h2>
+				<h2 class="text-xl font-bold">Moon Trainer</h2>
 				<p class="text-sm opacity-60">Navigation</p>
 			</div>
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import classNames from 'classnames';
 	import { onMount } from 'svelte';
-	import type { BeatMap, GameNote, RhythmGameState } from '$types/rhythm.type';
+	import type { BeatMap, GameNote, RhythmGameState, LaneMode } from '$types/rhythm.type';
 	import { DEFAULT_RHYTHM_GAME_STATE } from '$types/rhythm.type';
 
 	interface Props {
@@ -11,6 +11,7 @@
 		volume?: number;
 		keyBindings?: Record<number, string>;
 		offset?: number;
+		laneMode?: LaneMode;
 		onfinish?: (detail: { state: RhythmGameState }) => void;
 		ontimeupdate?: (time: number) => void;
 	}
@@ -22,6 +23,7 @@
 		volume = 0.8,
 		keyBindings = { 0: 'KeyD', 1: 'KeyF', 2: 'KeyJ', 3: 'KeyK' },
 		offset = 0,
+		laneMode = 4,
 		onfinish,
 		ontimeupdate
 	}: Props = $props();
@@ -37,10 +39,18 @@
 	const COUNTDOWN_SECONDS = 3;
 
 	// Lane configuration
-	const LANE_COLORS = ['bg-error', 'bg-success', 'bg-info', 'bg-warning'];
-	const LANE_KEYS = ['D', 'F', 'J', 'K'];
+	const LANE_COLORS_4 = ['bg-error', 'bg-success', 'bg-info', 'bg-warning'];
+	const LANE_COLORS_3 = ['bg-error', 'bg-info', 'bg-warning'];
+	const LANE_KEYS_4 = ['D', 'F', 'J', 'K'];
+	const LANE_KEYS_3 = ['F', '\u2423', 'J'];
 	const ROW_SIZES: Record<number, string> = { 0: 'h-8 w-12', 1: 'h-7 w-11', 2: 'h-6 w-10' };
 	const ROW_OPACITY: Record<number, string> = { 0: 'opacity-100', 1: 'opacity-80', 2: 'opacity-60' };
+
+	let laneColors = $derived(laneMode === 3 ? LANE_COLORS_3 : LANE_COLORS_4);
+	let laneKeys = $derived(laneMode === 3 ? LANE_KEYS_3 : LANE_KEYS_4);
+	let laneCount = $derived(laneMode as number);
+	let laneWidthPercent = $derived(100 / laneCount);
+	let laneIndices = $derived([...Array(laneCount).keys()]);
 
 	// Build reverse key map (code → column index)
 	let reverseKeyMap: Record<string, number> = $derived.by(() => {
@@ -70,8 +80,8 @@
 	let currentTime = $state(0);
 
 	// Input state
-	let pressedLanes: boolean[] = $state([false, false, false, false]);
-	let laneFlash: number[] = $state([0, 0, 0, 0]);
+	let pressedLanes: boolean[] = $state(Array(4).fill(false));
+	let laneFlash: number[] = $state(Array(4).fill(0));
 	let hitFeedback: { text: string; column: number; time: number }[] = $state([]);
 
 	// Computed: visible notes window
@@ -245,6 +255,8 @@
 			score: 0
 		}));
 		gameState = { ...DEFAULT_RHYTHM_GAME_STATE };
+		pressedLanes = Array(laneCount).fill(false);
+		laneFlash = Array(laneCount).fill(0);
 
 		await initAudio();
 
@@ -323,7 +335,7 @@
 	>
 		<!-- Lane backgrounds -->
 		<div class="absolute inset-0 flex">
-			{#each [0, 1, 2, 3] as col}
+			{#each laneIndices as col}
 				<div
 					class={classNames('flex-1 border-r border-base-content/10', {
 						'bg-base-content/5': col % 2 === 0
@@ -333,11 +345,11 @@
 		</div>
 
 		<!-- Lane flash overlays -->
-		{#each [0, 1, 2, 3] as col}
+		{#each laneIndices as col}
 			{#if laneFlash[col] > 0}
 				<div
-					class={classNames('pointer-events-none absolute top-0 bottom-0', LANE_COLORS[col])}
-					style="left: {col * 25}%; width: 25%; opacity: {laneFlash[col] * 0.2};"
+					class={classNames('pointer-events-none absolute top-0 bottom-0', laneColors[col])}
+					style="left: {col * laneWidthPercent}%; width: {laneWidthPercent}%; opacity: {laneFlash[col] * 0.2};"
 				></div>
 			{/if}
 		{/each}
@@ -351,7 +363,7 @@
 			{#if y > -50 && y < gameAreaHeight + 50}
 				<div
 					class="absolute flex items-center justify-center"
-					style="left: {note.column * 25}%; width: 25%; top: {y}px; transform: translateY(-50%);"
+					style="left: {note.column * laneWidthPercent}%; width: {laneWidthPercent}%; top: {y}px; transform: translateY(-50%);"
 				>
 					<div
 						class={classNames(
@@ -359,7 +371,7 @@
 							sizeClass,
 							opacityClass,
 							{
-								[LANE_COLORS[note.column]]: !isBomb,
+								[laneColors[note.column]]: !isBomb,
 								'bg-neutral text-neutral-content': isBomb,
 								'text-error-content': note.type === 'left',
 								'text-success-content': note.type === 'right',
@@ -391,7 +403,7 @@
 							'text-error': fb.text === 'MISS' || fb.text === 'BOMB'
 						}
 					)}
-					style="left: {fb.column * 25}%; width: 25%; bottom: 100px; opacity: {1 - age / 600}; transform: translateY({-age * 0.05}px);"
+					style="left: {fb.column * laneWidthPercent}%; width: {laneWidthPercent}%; bottom: 100px; opacity: {1 - age / 600}; transform: translateY({-age * 0.05}px);"
 				>
 					{fb.text}
 				</div>
@@ -406,18 +418,18 @@
 
 		<!-- Hit zone targets -->
 		<div class="absolute bottom-4 left-0 right-0 flex">
-			{#each [0, 1, 2, 3] as col}
+			{#each laneIndices as col}
 				<div class="flex flex-1 items-center justify-center">
 					<div
 						class={classNames(
 							'flex h-14 w-14 items-center justify-center rounded-full border-2 text-lg font-bold transition-transform',
 							{
-								[`${LANE_COLORS[col]} scale-110 border-transparent`]: pressedLanes[col],
+								[`${laneColors[col]} scale-110 border-transparent`]: pressedLanes[col],
 								'border-base-content/30 bg-base-100/50': !pressedLanes[col]
 							}
 						)}
 					>
-						{LANE_KEYS[col]}
+						{laneKeys[col]}
 					</div>
 				</div>
 			{/each}
@@ -433,7 +445,7 @@
 
 	<!-- Key hints -->
 	<div class="flex w-full max-w-lg justify-center gap-4 text-sm opacity-40">
-		<span><kbd class="kbd kbd-sm">D</kbd><kbd class="kbd kbd-sm">F</kbd><kbd class="kbd kbd-sm">J</kbd><kbd class="kbd kbd-sm">K</kbd> to hit</span>
+		<span>{#each laneKeys as key}<kbd class="kbd kbd-sm">{key}</kbd>{/each} to hit</span>
 		<span><kbd class="kbd kbd-sm">Esc</kbd> to quit</span>
 	</div>
 </div>

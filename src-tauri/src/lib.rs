@@ -12,92 +12,6 @@ use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::LogicalSize;
 use tauri::Manager;
 
-/// Delete a sticker character folder from static/stickers/{collection}/{path}
-/// If the folder is already gone, just regenerates the manifest to clean up stale entries.
-#[tauri::command]
-fn sticker_delete_character(collection_base: String, character_path: String) -> Result<(), String> {
-    let project_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or("Cannot resolve project root")?;
-    let stickers_dir = project_root.join("static").join("stickers");
-
-    let target = stickers_dir
-        .join(&collection_base)
-        .join(&character_path);
-
-    // Delete if the folder still exists on disk
-    if target.exists() {
-        let canonical_stickers = stickers_dir.canonicalize().map_err(|e| e.to_string())?;
-        let canonical_target = target.canonicalize().map_err(|e| e.to_string())?;
-        if !canonical_target.starts_with(&canonical_stickers) {
-            return Err("Invalid path: outside stickers directory".into());
-        }
-        if canonical_target.is_dir() {
-            std::fs::remove_dir_all(&canonical_target).map_err(|e| e.to_string())?;
-        }
-    }
-
-    // Always regenerate the manifest to clean up stale entries
-    let output = std::process::Command::new("node")
-        .arg(project_root.join("scripts").join("generate-sticker-manifest.js"))
-        .current_dir(project_root)
-        .output()
-        .map_err(|e| format!("Failed to run manifest generator: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Manifest generation failed: {}", stderr));
-    }
-
-    Ok(())
-}
-
-/// Copy a specific animation frame to the top-level sticker PNG and persist the choice
-/// in _frames/selection.json so the UI can show which frame is selected.
-#[tauri::command]
-fn sticker_set_frame(
-    collection_base: String,
-    sprite_name: String,
-    frame_idx: u32,
-) -> Result<(), String> {
-    let project_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or("Cannot resolve project root")?;
-    let stickers_dir = project_root.join("static").join("stickers");
-    let collection_dir = stickers_dir.join(&collection_base);
-
-    let frame_src = collection_dir
-        .join("_frames")
-        .join(&sprite_name)
-        .join(format!("{}.png", frame_idx));
-    let dest = collection_dir.join(format!("{}.png", sprite_name));
-
-    // Validate paths stay within stickers directory
-    let canonical_stickers = stickers_dir.canonicalize().map_err(|e| e.to_string())?;
-    let canonical_src = frame_src.canonicalize().map_err(|e| e.to_string())?;
-    if !canonical_src.starts_with(&canonical_stickers) {
-        return Err("Invalid path: source outside stickers directory".into());
-    }
-
-    // Copy frame to top-level
-    std::fs::copy(&canonical_src, &dest).map_err(|e| e.to_string())?;
-
-    // Update selection.json
-    let selection_path = collection_dir.join("_frames").join("selection.json");
-    let mut selections: serde_json::Map<String, serde_json::Value> =
-        if selection_path.exists() {
-            let data = std::fs::read_to_string(&selection_path).map_err(|e| e.to_string())?;
-            serde_json::from_str(&data).unwrap_or_default()
-        } else {
-            serde_json::Map::new()
-        };
-    selections.insert(sprite_name, serde_json::Value::from(frame_idx as u64));
-    let json = serde_json::to_string_pretty(&selections).map_err(|e| e.to_string())?;
-    std::fs::write(&selection_path, json).map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
 /// Write a text file to a given path
 #[tauri::command]
 fn write_text_file(path: String, content: String) -> Result<(), String> {
@@ -130,8 +44,6 @@ pub fn run() {
             lyrics::lyrics_cache_check,
             lyrics::lyrics_cache_has,
             lyrics::lyrics_fetch,
-            sticker_delete_character,
-            sticker_set_frame,
             write_text_file
         ]);
 

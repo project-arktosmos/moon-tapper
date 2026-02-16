@@ -4,14 +4,16 @@
 	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
-	import type { BeatSaverMap, BeatSaverDiff } from '$types/rhythm.type';
+	import type { BeatSaverMap, BeatSaverDiff, LaneMode } from '$types/rhythm.type';
 
 	export let map: BeatSaverMap;
 	export let selectedDifficulty: string;
+	export let laneMode: LaneMode = 4;
 	export let lyricsReady: boolean = false;
 
 	const dispatch = createEventDispatcher<{
 		difficultyChange: { difficulty: string };
+		laneModeChange: { laneMode: LaneMode };
 		startPlay: void;
 		back: void;
 	}>();
@@ -61,6 +63,32 @@
 					{diff.difficulty === 'ExpertPlus' ? 'Expert+' : diff.difficulty}
 				</button>
 			{/each}
+		</div>
+	</div>
+
+	<div class="flex flex-col items-center gap-2">
+		<p class="text-sm font-semibold uppercase tracking-wide opacity-60">
+			{$_('rhythm.laneMode')}
+		</p>
+		<div class="join">
+			<button
+				class={classNames('btn btn-sm join-item', {
+					'btn-primary': laneMode === 4,
+					'btn-ghost btn-outline': laneMode !== 4
+				})}
+				onclick={() => dispatch('laneModeChange', { laneMode: 4 })}
+			>
+				{$_('rhythm.lanes4')}
+			</button>
+			<button
+				class={classNames('btn btn-sm join-item', {
+					'btn-primary': laneMode === 3,
+					'btn-ghost btn-outline': laneMode !== 3
+				})}
+				onclick={() => dispatch('laneModeChange', { laneMode: 3 })}
+			>
+				{$_('rhythm.lanes3')}
+			</button>
 		</div>
 	</div>
 

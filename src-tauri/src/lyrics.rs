@@ -240,7 +240,7 @@ pub fn lyrics_fetch(
 // ---------------------------------------------------------------------------
 
 const LRCLIB_API_BASE: &str = "https://lrclib.net/api";
-const USER_AGENT: &str = "PokemonCardioCompanion/1.0.0 (https://github.com/arktosmos)";
+const USER_AGENT: &str = "MoonTrainer/1.0.0 (https://github.com/arktosmos)";
 
 pub fn spawn_lyrics_worker(
     app_handle: AppHandle,

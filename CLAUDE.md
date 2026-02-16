@@ -1,6 +1,6 @@
-# Arktosmos Boilerplate - Development Guidelines
+# Moon Trainer - Development Guidelines
 
-This document guides Claude (and developers) on implementing features using this SvelteKit boilerplate. Follow these conventions strictly to maintain consistency across the codebase.
+This document guides Claude (and developers) on implementing features in Moon Trainer. Follow these conventions strictly to maintain consistency across the codebase.
 
 ## Project Structure
 

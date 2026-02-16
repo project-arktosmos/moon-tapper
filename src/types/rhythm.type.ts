@@ -2,8 +2,15 @@ import type { ID } from '$types/core.type';
 
 // --- BeatSaver API types ---
 
+export interface BeatSaverSearchPaginationInfo {
+	total: number;
+	pages: number;
+	duration: number;
+}
+
 export interface BeatSaverSearchResponse {
 	docs: BeatSaverMap[];
+	info?: BeatSaverSearchPaginationInfo;
 }
 
 export interface BeatSaverMap {
@@ -173,6 +180,11 @@ export interface RhythmScore {
 	grade: string;
 	date: string;
 }
+
+// --- Lane mode ---
+
+export type LaneMode = 3 | 4;
+export const DEFAULT_LANE_MODE: LaneMode = 4;
 
 // --- Game session state ---
 

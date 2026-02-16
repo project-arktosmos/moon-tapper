@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    pokemon_cardio_companion_lib::run()
+    moon_trainer_lib::run()
 }

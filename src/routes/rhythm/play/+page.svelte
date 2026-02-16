@@ -21,8 +21,11 @@
 		BeatMapInfo,
 		RhythmGameState,
 		GameSessionState,
-		RhythmScore
+		RhythmScore,
+		LaneMode
 	} from '$types/rhythm.type';
+	import { DEFAULT_LANE_MODE } from '$types/rhythm.type';
+	import { condenseTo3Lanes } from '$utils/rhythm/condenseLanes';
 
 	let sessionState: GameSessionState = $state('loading');
 	let error: string | null = $state(null);
@@ -47,6 +50,22 @@
 	// Extracted data for difficulty switching
 	let extractedData: BeatSaverMapExtracted | null = $state(null);
 	let lyricsReady = $state(false);
+
+	// Lane mode (per-session, not persisted)
+	let laneMode: LaneMode = $state(DEFAULT_LANE_MODE);
+
+	// Derived game data based on lane mode
+	let gameBeatMap: BeatMap | null = $derived.by(() => {
+		if (!beatMap) return null;
+		return laneMode === 3 ? condenseTo3Lanes(beatMap) : beatMap;
+	});
+
+	let gameKeyBindings: Record<number, string> = $derived.by(() => {
+		if (laneMode === 3) {
+			return { 0: 'KeyF', 1: 'Space', 2: 'KeyJ' };
+		}
+		return settings.keyBindings;
+	});
 
 	// Settings
 	let settings = rhythmSettingsService.get();
@@ -82,6 +101,10 @@
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
 		}
+	}
+
+	function handleLaneModeChange(e: CustomEvent<{ laneMode: LaneMode }>) {
+		laneMode = e.detail.laneMode;
 	}
 
 	function handleStartPlay() {
@@ -214,22 +237,25 @@
 	<RhythmDifficultySelect
 		map={selectedMap}
 		{selectedDifficulty}
+		{laneMode}
 		{lyricsReady}
 		on:difficultyChange={handleDifficultyChange}
+		on:laneModeChange={handleLaneModeChange}
 		on:startPlay={handleStartPlay}
 		on:back={handleBackToBrowse}
 	/>
 
-{:else if sessionState === 'playing' && beatMap}
+{:else if sessionState === 'playing' && gameBeatMap}
 	<div class="flex gap-4">
 		<div class="flex-1 min-w-0">
 			<RhythmGame
-				{beatMap}
+				beatMap={gameBeatMap}
 				{audioBase64}
 				scrollSpeed={settings.scrollSpeed}
 				volume={settings.volume}
-				keyBindings={settings.keyBindings}
+				keyBindings={gameKeyBindings}
 				offset={settings.offset}
+				{laneMode}
 				onfinish={handleGameFinish}
 				ontimeupdate={handleTimeUpdate}
 			/>

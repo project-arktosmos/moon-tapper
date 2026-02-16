@@ -7,7 +7,11 @@
 		"path": "/database",
 		"name": "Database"
 	},
-{
+	{
+		"path": "/rhythm/play",
+		"name": "Play"
+	},
+	{
 		"path": "/rhythm/playlists",
 		"name": "Playlists"
 	},
@@ -22,9 +26,5 @@
 	{
 		"path": "/rhythm/settings",
 		"name": "Settings"
-	},
-	{
-		"path": "/stickers",
-		"name": "Stickers"
 	}
 ]

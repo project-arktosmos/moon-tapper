@@ -10,7 +10,7 @@
 	import { lyricsApi } from '$api/lyrics';
 	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
 	import { playlistAdapter } from '$adapters/classes/playlist.adapter';
-	import { FAVORITES_PLAYLIST_ID, type BeatSaverMap, type PlaylistTrack, type RhythmPlaylist } from '$types/rhythm.type';
+	import { FAVORITES_PLAYLIST_ID, type BeatSaverMap, type BeatSaverSearchPaginationInfo, type PlaylistTrack, type RhythmPlaylist } from '$types/rhythm.type';
 
 	interface MapCacheStatus {
 		downloaded: boolean;
@@ -38,6 +38,8 @@
 	let activeCategory: BrowseCategory = $state('CURATED');
 	let cacheStatus: Record<string, MapCacheStatus> = $state({});
 	let selectedPlaylists: Record<string, string> = $state({});
+	let currentPage = $state(0);
+	let paginationInfo: BeatSaverSearchPaginationInfo | null = $state(null);
 
 	let gridItems: PlaylistTrack[] = $derived(
 		maps.map((map) => playlistAdapter.fromBeatSaverMap(map))

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "pokemon-cardio-companion",
+  "productName": "moon-trainer",
   "version": "0.0.1",
-  "identifier": "com.arktosmos.pokemon-cardio-companion",
+  "identifier": "com.arktosmos.moon-trainer",
   "build": {
     "beforeDevCommand": "node scripts/generate-routes.js && vite dev",
     "devUrl": "http://localhost:9013",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Pokemon Cardio Companion",
+        "title": "Moon Trainer",
         "width": 1920,
         "height": 1080,
         "minWidth": 800,
