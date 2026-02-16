@@ -3,7 +3,7 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
-	import TrackItem from '$components/core/TrackItem.svelte';
+	import TrackGrid from '$components/core/TrackGrid.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { beatsaverApi } from '$api/beatsaver';
 	import { beatsaverCache } from '$api/beatsaver-cache';
@@ -11,7 +11,7 @@
 	import RhythmPlaylistManager from '$components/core/RhythmPlaylistManager.svelte';
 	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
 	import { playlistAdapter } from '$adapters/classes/playlist.adapter';
-	import { FAVORITES_PLAYLIST_ID, type BeatSaverMap, type BeatSaverDiff, type PlaylistTrack, type RhythmPlaylist } from '$types/rhythm.type';
+	import { FAVORITES_PLAYLIST_ID, type BeatSaverMap, type PlaylistTrack, type RhythmPlaylist } from '$types/rhythm.type';
 
 	interface MapCacheStatus {
 		downloaded: boolean;
@@ -41,6 +41,10 @@
 	let cacheStatus: Record<string, MapCacheStatus> = $state({});
 	let browseMode: 'search' | 'playlists' = $state('search');
 	let selectedPlaylists: Record<string, string> = $state({});
+
+	let gridItems: PlaylistTrack[] = $derived(
+		maps.map((map) => playlistAdapter.fromBeatSaverMap(map))
+	);
 
 	const playlistsStore = rhythmPlaylistsService.store;
 
@@ -113,21 +117,14 @@
 		}
 	}
 
-	function getDiffs(map: BeatSaverMap): BeatSaverDiff[] {
-		return map.versions?.[0]?.diffs || [];
+	function handleGridDiffSelect(e: CustomEvent<{ id: string; difficulty: string }>) {
+		selectedDiffs = { ...selectedDiffs, [e.detail.id]: e.detail.difficulty };
 	}
 
-	function getSelectedDiff(map: BeatSaverMap): string {
-		return selectedDiffs[map.id] || getDiffs(map)[0]?.difficulty || 'Normal';
-	}
-
-	function handleDiffSelect(mapId: string, diff: string) {
-		selectedDiffs = { ...selectedDiffs, [mapId]: diff };
-	}
-
-	function handleSelect(map: BeatSaverMap) {
-		const selectedDiff = getSelectedDiff(map);
-		dispatch('select', { map, difficulty: selectedDiff, beatmapFilename: '' });
+	function handleGridPlay(e: CustomEvent<{ item: PlaylistTrack; difficulty: string }>) {
+		const map = maps.find((m) => m.id === e.detail.item.id);
+		if (!map) return;
+		dispatch('select', { map, difficulty: e.detail.difficulty, beatmapFilename: '' });
 	}
 
 	function getSelectedPlaylist(mapId: string): string {
@@ -138,12 +135,11 @@
 		selectedPlaylists = { ...selectedPlaylists, [mapId]: playlistId };
 	}
 
-	function handleAddToPlaylist(map: BeatSaverMap, playlistId: string) {
+	function handleAddToPlaylist(track: PlaylistTrack, playlistId: string) {
 		const playlist = rhythmPlaylistsService.exists(playlistId);
 		if (!playlist) return;
-		if (playlist.tracks.some((t) => t.id === map.id)) return;
+		if (playlist.tracks.some((t) => t.id === track.id)) return;
 
-		const track = playlistAdapter.fromBeatSaverMap(map);
 		const updated: RhythmPlaylist = {
 			...playlist,
 			tracks: [...playlist.tracks, track],
@@ -234,70 +230,59 @@
 	{:else if maps.length === 0}
 		<div></div>
 	{:else}
-		<div class="grid gap-3">
-			{#each maps as map (map.id)}
-				{@const version = map.versions?.[0]}
-				{@const status = cacheStatus[map.id]}
-				{@const targetPlaylist = $playlistsStore.find((p) => p.id === getSelectedPlaylist(map.id))}
-				<TrackItem
-					coverURL={version?.coverURL || ''}
-					songName={map.metadata.songName}
-					songAuthorName={map.metadata.songAuthorName}
-					levelAuthorName={map.metadata.levelAuthorName}
-					bpm={map.metadata.bpm}
-					duration={map.metadata.duration}
-					diffs={getDiffs(map)}
-					selectedDifficulty={getSelectedDiff(map)}
-					on:diffSelect={(e) => handleDiffSelect(map.id, e.detail.difficulty)}
-					on:play={() => handleSelect(map)}
-				>
-					<svelte:fragment slot="badges">
-						{#if status?.downloaded}
-							<span class="badge badge-success badge-sm gap-1" title={$_('rhythm.cached')}>
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM6.7 11.3l5-5a.7.7 0 0 0-1-1L6.2 9.8 5.3 8.9a.7.7 0 1 0-1 1l1.4 1.4a.7.7 0 0 0 1 0Z"/></svg>
-								{$_('rhythm.downloaded')}
-							</span>
-						{/if}
-						{#if status?.lyricsStatus === 'cached'}
-							<span class="badge badge-accent badge-sm gap-1" title={$_('rhythm.lyrics.cached')}>
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
-								{$_('rhythm.lyrics.title')}
-							</span>
-						{:else if status?.lyricsStatus === 'not_found'}
-							<span class="badge badge-ghost badge-sm gap-1 opacity-50" title={$_('rhythm.lyrics.notFound')}>
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
-								{$_('rhythm.lyrics.none')}
-							</span>
-						{/if}
-					</svelte:fragment>
-					<svelte:fragment slot="actions">
-						<div class="join">
-							<select
-								class="select select-bordered select-sm join-item"
-								value={getSelectedPlaylist(map.id)}
-								on:change={(e) => handlePlaylistSelectChange(map.id, e.currentTarget.value)}
-							>
-								{#each $playlistsStore as playlist}
-									<option value={playlist.id}>{playlist.name}</option>
-								{/each}
-							</select>
-							{#if targetPlaylist?.tracks.some((t) => t.id === map.id)}
-								<button class="btn btn-sm btn-success join-item" disabled>
-									{$_('rhythm.playlists.added')}
-								</button>
-							{:else}
-								<button
-									class="btn btn-sm btn-ghost join-item"
-									on:click={() => handleAddToPlaylist(map, getSelectedPlaylist(map.id))}
-								>
-									{$_('rhythm.playlists.add')}
-								</button>
-							{/if}
-						</div>
-					</svelte:fragment>
-				</TrackItem>
-			{/each}
-		</div>
+		<TrackGrid
+			items={gridItems}
+			{selectedDiffs}
+			on:diffSelect={handleGridDiffSelect}
+			on:play={handleGridPlay}
+		>
+			<svelte:fragment slot="badges" let:item>
+				{@const status = cacheStatus[item.id]}
+				{#if status?.downloaded}
+					<span class="badge badge-success badge-sm gap-1" title={$_('rhythm.cached')}>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM6.7 11.3l5-5a.7.7 0 0 0-1-1L6.2 9.8 5.3 8.9a.7.7 0 1 0-1 1l1.4 1.4a.7.7 0 0 0 1 0Z"/></svg>
+						{$_('rhythm.downloaded')}
+					</span>
+				{/if}
+				{#if status?.lyricsStatus === 'cached'}
+					<span class="badge badge-accent badge-sm gap-1" title={$_('rhythm.lyrics.cached')}>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
+						{$_('rhythm.lyrics.title')}
+					</span>
+				{:else if status?.lyricsStatus === 'not_found'}
+					<span class="badge badge-ghost badge-sm gap-1 opacity-50" title={$_('rhythm.lyrics.notFound')}>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
+						{$_('rhythm.lyrics.none')}
+					</span>
+				{/if}
+			</svelte:fragment>
+			<svelte:fragment slot="actions" let:item>
+				{@const targetPlaylist = $playlistsStore.find((p) => p.id === getSelectedPlaylist(item.id))}
+				<div class="join">
+					<select
+						class="select select-bordered select-sm join-item"
+						value={getSelectedPlaylist(item.id)}
+						on:change={(e) => handlePlaylistSelectChange(item.id, e.currentTarget.value)}
+					>
+						{#each $playlistsStore as playlist}
+							<option value={playlist.id}>{playlist.name}</option>
+						{/each}
+					</select>
+					{#if targetPlaylist?.tracks.some((t) => t.id === item.id)}
+						<button class="btn btn-sm btn-success join-item" disabled>
+							{$_('rhythm.playlists.added')}
+						</button>
+					{:else}
+						<button
+							class="btn btn-sm btn-ghost join-item"
+							on:click={() => handleAddToPlaylist(item, getSelectedPlaylist(item.id))}
+						>
+							{$_('rhythm.playlists.add')}
+						</button>
+					{/if}
+				</div>
+			</svelte:fragment>
+		</TrackGrid>
 	{/if}
 	{/if}
 </div>

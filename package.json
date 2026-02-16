@@ -16,6 +16,7 @@
 		"test:ui": "vitest --ui",
 		"test:coverage": "vitest run --coverage",
 		"import:cheats": "node scripts/import-cheats.js",
+		"remove-sprite-bg": "python3 scripts/remove-sprite-bg.py",
 		"clean": "rm -rf dist .svelte-kit",
 		"tauri": "tauri",
 		"tauri:dev": "tauri dev",

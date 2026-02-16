@@ -2,9 +2,11 @@
 	import { createEventDispatcher } from 'svelte';
 	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
+	import TrackGrid from '$components/core/TrackGrid.svelte';
 	import TrackItem from '$components/core/TrackItem.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
+	import { playlistAdapter } from '$adapters/classes/playlist.adapter';
 	import { FAVORITES_PLAYLIST_ID, type RhythmPlaylist, type PlaylistTrack } from '$types/rhythm.type';
 
 	const dispatch = createEventDispatcher<{
@@ -16,6 +18,8 @@
 	let renameValue: string = $state('');
 	let confirmDeleteId: string | null = $state(null);
 	let selectedDiffs: Record<string, string> = $state({});
+	let importError: string | null = $state(null);
+	let fileInputEl: HTMLInputElement;
 
 	const playlistsStore = rhythmPlaylistsService.store;
 
@@ -83,16 +87,49 @@
 		});
 	}
 
-	function getSelectedDiff(track: PlaylistTrack): string {
-		return selectedDiffs[track.id] || track.diffs[0]?.difficulty || 'Normal';
+	function handleGridDiffSelect(e: CustomEvent<{ id: string; difficulty: string }>) {
+		selectedDiffs = { ...selectedDiffs, [e.detail.id]: e.detail.difficulty };
 	}
 
-	function handleDiffSelect(trackId: string, diff: string) {
-		selectedDiffs = { ...selectedDiffs, [trackId]: diff };
+	function handleGridPlay(e: CustomEvent<{ item: PlaylistTrack; difficulty: string }>) {
+		dispatch('select', { track: e.detail.item, difficulty: e.detail.difficulty });
 	}
 
-	function handlePlayTrack(track: PlaylistTrack) {
-		dispatch('select', { track, difficulty: getSelectedDiff(track) });
+	function handleExportPlaylist(playlist: RhythmPlaylist) {
+		const exportData = playlistAdapter.toExportJSON(playlist);
+		const json = JSON.stringify(exportData, null, 2);
+		const blob = new Blob([json], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${playlist.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	function handleImportClick() {
+		importError = null;
+		fileInputEl.click();
+	}
+
+	function handleImportFile(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = () => {
+			try {
+				const json = JSON.parse(reader.result as string);
+				const playlist = playlistAdapter.fromExportJSON(json);
+				rhythmPlaylistsService.add(playlist);
+				importError = null;
+			} catch {
+				importError = $_('rhythm.playlists.importError');
+			}
+			input.value = '';
+		};
+		reader.readAsText(file);
 	}
 </script>
 
@@ -115,31 +152,21 @@
 				{$_('rhythm.playlists.emptyPlaylist')}
 			</div>
 		{:else}
-			<div class="grid gap-3">
-				{#each selectedPlaylist.tracks as track (track.id)}
-					<TrackItem
-						coverURL={track.coverURL}
-						songName={track.songName}
-						songAuthorName={track.songAuthorName}
-						levelAuthorName={track.levelAuthorName}
-						bpm={track.bpm}
-						duration={track.duration}
-						diffs={track.diffs}
-						selectedDifficulty={getSelectedDiff(track)}
-						on:diffSelect={(e) => handleDiffSelect(track.id, e.detail.difficulty)}
-						on:play={() => handlePlayTrack(track)}
+			<TrackGrid
+				items={selectedPlaylist.tracks}
+				{selectedDiffs}
+				on:diffSelect={handleGridDiffSelect}
+				on:play={handleGridPlay}
+			>
+				<svelte:fragment slot="actions" let:item>
+					<button
+						class="btn btn-ghost btn-sm text-error"
+						on:click={() => handleRemoveTrack(selectedPlaylist, item.id)}
 					>
-						<svelte:fragment slot="actions">
-							<button
-								class="btn btn-ghost btn-sm text-error"
-								on:click={() => handleRemoveTrack(selectedPlaylist, track.id)}
-							>
-								{$_('rhythm.playlists.removeTrack')}
-							</button>
-						</svelte:fragment>
-					</TrackItem>
-				{/each}
-			</div>
+						{$_('rhythm.playlists.removeTrack')}
+					</button>
+				</svelte:fragment>
+			</TrackGrid>
 		{/if}
 	</div>
 {:else}
@@ -147,20 +174,40 @@
 	<div class="flex flex-col gap-4">
 		<div class="flex items-center justify-between">
 			<h2 class="text-xl font-bold">{$_('rhythm.playlists.title')}</h2>
-			<Button
-				label={$_('rhythm.playlists.createPlaylist')}
-				color={ThemeColors.Primary}
-				size={ThemeSizes.Small}
-				on:click={handleCreatePlaylist}
-			/>
+			<div class="flex gap-2">
+				<Button
+					label={$_('rhythm.playlists.importPlaylist')}
+					color={ThemeColors.Neutral}
+					size={ThemeSizes.Small}
+					on:click={handleImportClick}
+				/>
+				<Button
+					label={$_('rhythm.playlists.createPlaylist')}
+					color={ThemeColors.Primary}
+					size={ThemeSizes.Small}
+					on:click={handleCreatePlaylist}
+				/>
+			</div>
 		</div>
+		<input
+			type="file"
+			accept=".json"
+			class="hidden"
+			bind:this={fileInputEl}
+			on:change={handleImportFile}
+		/>
+		{#if importError}
+			<div role="alert" class="alert alert-error">
+				<span>{importError}</span>
+			</div>
+		{/if}
 
 		{#if $playlistsStore.length === 0}
 			<div class="py-12 text-center opacity-60">
 				{$_('rhythm.playlists.noPlaylists')}
 			</div>
 		{:else}
-			<div class="grid gap-3">
+			<div class="grid gap-4">
 				{#each $playlistsStore as playlist (playlist.id)}
 					<div
 						class="card bg-base-200 shadow-sm cursor-pointer transition-colors hover:bg-base-300"
@@ -169,65 +216,94 @@
 						role="button"
 						tabindex="0"
 					>
-						<div class="card-body flex-row items-center gap-4 p-4">
-							<div class="flex-1 min-w-0">
-								{#if renamingId === playlist.id}
-									<!-- svelte-ignore a11y-autofocus -->
-									<input
-										type="text"
-										class="input input-bordered input-sm w-full max-w-xs"
-										bind:value={renameValue}
-										on:keydown={(e) => handleRenameKeydown(e, playlist)}
-										on:blur={() => handleRenameConfirm(playlist)}
-										on:click|stopPropagation
-										autofocus
-									/>
-								{:else}
-									<h3 class="font-semibold truncate">{playlist.name}</h3>
-									<p class="text-sm opacity-50">
-										{playlist.tracks.length} tracks
-									</p>
-								{/if}
-							</div>
-							<div class="flex items-center gap-1">
-								{#if confirmDeleteId === playlist.id}
-									<span class="text-sm text-error mr-1">{$_('rhythm.playlists.confirmDelete')}</span>
-									<button
-										class="btn btn-error btn-sm"
-										on:click|stopPropagation={() => handleDeleteConfirm(playlist)}
-									>
-										{$_('rhythm.playlists.deletePlaylist')}
-									</button>
-									<button
-										class="btn btn-ghost btn-sm"
-										on:click|stopPropagation={() => (confirmDeleteId = null)}
-									>
-										{$_('common.cancel')}
-									</button>
-								{:else}
-									<button
-										class="btn btn-ghost btn-sm"
-										title={$_('rhythm.playlists.renamePlaylist')}
-										on:click|stopPropagation={() => handleStartRename(playlist)}
-									>
-										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
-											<path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
-											<path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
-										</svg>
-									</button>
-									{#if playlist.id !== FAVORITES_PLAYLIST_ID}
+						<div class="card-body gap-3 p-4">
+							<div class="flex items-center gap-4">
+								<div class="flex-1 min-w-0">
+									{#if renamingId === playlist.id}
+										<!-- svelte-ignore a11y-autofocus -->
+										<input
+											type="text"
+											class="input input-bordered input-sm w-full max-w-xs"
+											bind:value={renameValue}
+											on:keydown={(e) => handleRenameKeydown(e, playlist)}
+											on:blur={() => handleRenameConfirm(playlist)}
+											on:click|stopPropagation
+											autofocus
+										/>
+									{:else}
+										<h3 class="font-semibold truncate">{playlist.name}</h3>
+										<p class="text-sm opacity-50">
+											{playlist.tracks.length} tracks
+										</p>
+									{/if}
+								</div>
+								<div class="flex items-center gap-1">
+									{#if confirmDeleteId === playlist.id}
+										<span class="text-sm text-error mr-1">{$_('rhythm.playlists.confirmDelete')}</span>
 										<button
-											class="btn btn-ghost btn-sm text-error"
-											title={$_('rhythm.playlists.deletePlaylist')}
-											on:click|stopPropagation={() => (confirmDeleteId = playlist.id)}
+											class="btn btn-error btn-sm"
+											on:click|stopPropagation={() => handleDeleteConfirm(playlist)}
+										>
+											{$_('rhythm.playlists.deletePlaylist')}
+										</button>
+										<button
+											class="btn btn-ghost btn-sm"
+											on:click|stopPropagation={() => (confirmDeleteId = null)}
+										>
+											{$_('common.cancel')}
+										</button>
+									{:else}
+										<button
+											class="btn btn-ghost btn-sm"
+											title={$_('rhythm.playlists.exportPlaylist')}
+											on:click|stopPropagation={() => handleExportPlaylist(playlist)}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
-												<path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 1 .7.8l-.5 5.5a.75.75 0 0 1-1.49-.14l.5-5.5a.75.75 0 0 1 .79-.66Zm2.84 0a.75.75 0 0 1 .79.66l.5 5.5a.75.75 0 0 1-1.49.14l-.5-5.5a.75.75 0 0 1 .7-.8Z" clip-rule="evenodd" />
+												<path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z" />
+												<path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
 											</svg>
 										</button>
+										<button
+											class="btn btn-ghost btn-sm"
+											title={$_('rhythm.playlists.renamePlaylist')}
+											on:click|stopPropagation={() => handleStartRename(playlist)}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+												<path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+												<path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+											</svg>
+										</button>
+										{#if playlist.id !== FAVORITES_PLAYLIST_ID}
+											<button
+												class="btn btn-ghost btn-sm text-error"
+												title={$_('rhythm.playlists.deletePlaylist')}
+												on:click|stopPropagation={() => (confirmDeleteId = playlist.id)}
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+													<path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 1 .7.8l-.5 5.5a.75.75 0 0 1-1.49-.14l.5-5.5a.75.75 0 0 1 .79-.66Zm2.84 0a.75.75 0 0 1 .79.66l.5 5.5a.75.75 0 0 1-1.49.14l-.5-5.5a.75.75 0 0 1 .7-.8Z" clip-rule="evenodd" />
+												</svg>
+											</button>
+										{/if}
 									{/if}
-								{/if}
+								</div>
 							</div>
+							{#if playlist.tracks.length > 0}
+								<div class="grid grid-cols-2 md:grid-cols-4 gap-2" on:click|stopPropagation on:keydown|stopPropagation>
+									{#each playlist.tracks.slice(0, 4) as track (track.id)}
+										<TrackItem
+											coverURL={track.coverURL}
+											songName={track.songName}
+											songAuthorName={track.songAuthorName}
+											bpm={track.bpm}
+											duration={track.duration}
+											diffs={track.diffs}
+											selectedDifficulty={selectedDiffs[track.id] || track.diffs[0]?.difficulty || ''}
+											on:diffSelect={(e) => (selectedDiffs = { ...selectedDiffs, [track.id]: e.detail.difficulty })}
+											on:play={() => dispatch('select', { track, difficulty: selectedDiffs[track.id] || track.diffs[0]?.difficulty || 'Normal' })}
+										/>
+									{/each}
+								</div>
+							{/if}
 						</div>
 					</div>
 				{/each}

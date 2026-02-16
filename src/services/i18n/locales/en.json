@@ -89,7 +89,10 @@
 			"deletePlaylist": "Delete",
 			"renamePlaylist": "Rename",
 			"emptyPlaylist": "This playlist is empty. Add tracks from the Search tab.",
-			"back": "Back to Playlists"
+			"back": "Back to Playlists",
+			"exportPlaylist": "Export",
+			"importPlaylist": "Import Playlist",
+			"importError": "Failed to import playlist: invalid file format"
 		}
 	}
 }

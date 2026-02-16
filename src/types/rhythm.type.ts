@@ -206,3 +206,11 @@ export interface RhythmPlaylist {
 }
 
 export const FAVORITES_PLAYLIST_ID = 'favorites';
+
+// --- Playlist import/export ---
+
+export interface RhythmPlaylistExport {
+	version: 1;
+	name: string;
+	tracks: PlaylistTrack[];
+}

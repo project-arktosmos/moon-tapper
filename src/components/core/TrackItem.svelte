@@ -34,9 +34,9 @@
 	}
 </script>
 
-<div class="card card-side bg-base-200 shadow-md">
+<div class="card bg-base-200 shadow-md">
 	{#if coverURL}
-		<figure class="w-24 shrink-0">
+		<figure class="aspect-square">
 			<img
 				src={coverURL}
 				alt={songName}
@@ -45,17 +45,19 @@
 		</figure>
 	{/if}
 	<div class="card-body gap-1 p-4">
-		<h3 class="card-title text-base">{songName}</h3>
-		<p class="text-sm opacity-60">
+		<h3 class="card-title text-base line-clamp-1">{songName}</h3>
+		<p class="text-sm opacity-60 line-clamp-1">
 			{songAuthorName}
 			{#if levelAuthorName}
 				<span class="opacity-40">/ mapped by {levelAuthorName}</span>
 			{/if}
 		</p>
-		<div class="flex flex-wrap items-center gap-2">
+		<div class="flex flex-wrap items-center gap-1">
 			<span class="badge badge-ghost badge-sm">{Math.round(bpm)} BPM</span>
 			<span class="badge badge-ghost badge-sm">{formatDuration(duration)}</span>
 			<slot name="badges" />
+		</div>
+		<div class="flex flex-wrap items-center gap-1">
 			{#each diffs as diff}
 				<button
 					class={classNames('badge badge-sm cursor-pointer', diffColors[diff.difficulty] || 'badge-neutral', {
