@@ -60,10 +60,24 @@
 					<li>
 						<a
 							href={route.path}
-							class:active={$page.url.pathname === route.path}
+							class:active={$page.url.pathname === route.path || (route.children && $page.url.pathname.startsWith(route.path + '/'))}
 						>
 							{route.name}
 						</a>
+						{#if route.children && $page.url.pathname.startsWith(route.path)}
+							<ul>
+								{#each route.children as child}
+									<li>
+										<a
+											href={child.path}
+											class:active={$page.url.pathname === child.path}
+										>
+											{child.name}
+										</a>
+									</li>
+								{/each}
+							</ul>
+						{/if}
 					</li>
 				{/each}
 			</ul>

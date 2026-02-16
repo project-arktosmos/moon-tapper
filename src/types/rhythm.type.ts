@@ -174,9 +174,9 @@ export interface RhythmScore {
 	date: string;
 }
 
-// --- Page state ---
+// --- Game session state ---
 
-export type RhythmPageState = 'browsing' | 'loading' | 'ready' | 'playing' | 'results';
+export type GameSessionState = 'loading' | 'ready' | 'playing' | 'results';
 
 // --- Playlist types ---
 

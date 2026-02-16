@@ -1,5 +1,6 @@
 mod beatsaver;
 mod db;
+mod lyrics;
 
 use db::{Database, ExecuteResult, QueryResult};
 use serde_json::Value as JsonValue;
@@ -97,6 +98,12 @@ fn sticker_set_frame(
     Ok(())
 }
 
+/// Write a text file to a given path
+#[tauri::command]
+fn write_text_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, &content).map_err(|e| e.to_string())
+}
+
 /// Execute a SELECT query and return results
 /// TypeScript assembles the SQL queries and types, Rust just executes them
 #[tauri::command]
@@ -115,12 +122,17 @@ fn db_execute(sql: String, params: Vec<JsonValue>, db: State<Database>) -> Resul
 pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             db_query,
             db_execute,
             beatsaver::beatsaver_download,
+            lyrics::lyrics_cache_check,
+            lyrics::lyrics_cache_has,
+            lyrics::lyrics_fetch,
             sticker_delete_character,
-            sticker_set_frame
+            sticker_set_frame,
+            write_text_file
         ]);
 
     #[cfg(desktop)]
@@ -173,6 +185,11 @@ pub fn run() {
             let db = Database::new(app.handle(), openvgdb_path)?;
             db.init().expect("Failed to initialize database");
             app.manage(db);
+
+            // Initialize lyrics queue worker
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+            app.manage(lyrics::LyricsQueue { tx });
+            lyrics::spawn_lyrics_worker(app.handle().clone(), rx);
 
             #[cfg(desktop)]
             {

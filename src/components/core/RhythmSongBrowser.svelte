@@ -7,8 +7,7 @@
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { beatsaverApi } from '$api/beatsaver';
 	import { beatsaverCache } from '$api/beatsaver-cache';
-	import { lyricsCache } from '$api/lyrics-cache';
-	import RhythmPlaylistManager from '$components/core/RhythmPlaylistManager.svelte';
+	import { lyricsApi } from '$api/lyrics';
 	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
 	import { playlistAdapter } from '$adapters/classes/playlist.adapter';
 	import { FAVORITES_PLAYLIST_ID, type BeatSaverMap, type PlaylistTrack, type RhythmPlaylist } from '$types/rhythm.type';
@@ -20,7 +19,6 @@
 
 	const dispatch = createEventDispatcher<{
 		select: { map: BeatSaverMap; difficulty: string; beatmapFilename: string };
-		playlistSelect: { track: PlaylistTrack; difficulty: string };
 	}>();
 
 	type BrowseCategory = 'CURATED' | 'LAST_PUBLISHED' | 'UPDATED';
@@ -39,7 +37,6 @@
 	let selectedDiffs: Record<string, string> = $state({});
 	let activeCategory: BrowseCategory = $state('CURATED');
 	let cacheStatus: Record<string, MapCacheStatus> = $state({});
-	let browseMode: 'search' | 'playlists' = $state('search');
 	let selectedPlaylists: Record<string, string> = $state({});
 
 	let gridItems: PlaylistTrack[] = $derived(
@@ -75,7 +72,7 @@
 				try {
 					const [downloaded, lyrics] = await Promise.all([
 						beatsaverCache.hasDownloadedMap(map.id),
-						lyricsCache.has(map.metadata.songName, map.metadata.songAuthorName)
+						lyricsApi.cacheHas(map.metadata.songName, map.metadata.songAuthorName)
 					]);
 					results[map.id] = {
 						downloaded,
@@ -147,37 +144,9 @@
 		};
 		rhythmPlaylistsService.update(updated);
 	}
-
-	function handlePlaylistTrackSelect(
-		e: CustomEvent<{ track: PlaylistTrack; difficulty: string }>
-	) {
-		dispatch('playlistSelect', e.detail);
-	}
-
 </script>
 
 <div class="flex flex-col gap-4">
-	<!-- Mode tabs -->
-	<div role="tablist" class="tabs tabs-bordered">
-		<button
-			role="tab"
-			class={classNames('tab', { 'tab-active': browseMode === 'search' })}
-			on:click={() => (browseMode = 'search')}
-		>
-			{$_('rhythm.playlists.tabSearch')}
-		</button>
-		<button
-			role="tab"
-			class={classNames('tab', { 'tab-active': browseMode === 'playlists' })}
-			on:click={() => (browseMode = 'playlists')}
-		>
-			{$_('rhythm.playlists.tabPlaylists')}
-		</button>
-	</div>
-
-	{#if browseMode === 'playlists'}
-		<RhythmPlaylistManager on:select={handlePlaylistTrackSelect} />
-	{:else}
 	<div class="flex gap-2">
 		<input
 			type="text"
@@ -283,6 +252,5 @@
 				</div>
 			</svelte:fragment>
 		</TrackGrid>
-	{/if}
 	{/if}
 </div>

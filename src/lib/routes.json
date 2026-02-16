@@ -8,8 +8,28 @@
 		"name": "Database"
 	},
 	{
+		"path": "/rhythm/play",
+		"name": "Play"
+	},
+	{
+		"path": "/rhythm/playlists",
+		"name": "Playlists"
+	},
+	{
+		"path": "/search",
+		"name": "Search"
+	},
+	{
 		"path": "/rhythm",
 		"name": "Rhythm"
+	},
+	{
+		"path": "/rhythm/scores",
+		"name": "Scores"
+	},
+	{
+		"path": "/rhythm/settings",
+		"name": "Settings"
 	},
 	{
 		"path": "/stickers",

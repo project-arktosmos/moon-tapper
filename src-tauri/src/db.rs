@@ -200,7 +200,66 @@ impl Database {
                 cached_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_lyrics_cache_key ON lyrics_cache(cache_key);",
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_lyrics_cache_key ON lyrics_cache(cache_key);
+
+            -- Sticker collections (top-level tabs)
+            CREATE TABLE IF NOT EXISTS sticker_collections (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                base_path TEXT NOT NULL
+            );
+
+            -- Sticker categories (within a collection)
+            CREATE TABLE IF NOT EXISTS sticker_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                collection_id TEXT NOT NULL,
+                slug TEXT NOT NULL,
+                name TEXT NOT NULL,
+                path TEXT,
+                FOREIGN KEY (collection_id) REFERENCES sticker_collections(id) ON DELETE CASCADE
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_sticker_categories_unique ON sticker_categories(collection_id, slug);
+
+            -- Sticker subcategories (within a category, e.g. dragon-ball-pixel character forms)
+            CREATE TABLE IF NOT EXISTS sticker_subcategories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category_id INTEGER NOT NULL,
+                slug TEXT NOT NULL,
+                name TEXT NOT NULL,
+                path TEXT NOT NULL,
+                FOREIGN KEY (category_id) REFERENCES sticker_categories(id) ON DELETE CASCADE
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_sticker_subcategories_unique ON sticker_subcategories(category_id, slug);
+
+            -- Individual sticker sprite files
+            CREATE TABLE IF NOT EXISTS sticker_sprites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                collection_id TEXT NOT NULL,
+                category_id INTEGER NOT NULL,
+                subcategory_id INTEGER,
+                filename TEXT NOT NULL,
+                FOREIGN KEY (collection_id) REFERENCES sticker_collections(id) ON DELETE CASCADE,
+                FOREIGN KEY (category_id) REFERENCES sticker_categories(id) ON DELETE CASCADE,
+                FOREIGN KEY (subcategory_id) REFERENCES sticker_subcategories(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_sticker_sprites_collection ON sticker_sprites(collection_id);
+            CREATE INDEX IF NOT EXISTS idx_sticker_sprites_category ON sticker_sprites(category_id);
+            CREATE INDEX IF NOT EXISTS idx_sticker_sprites_subcategory ON sticker_sprites(subcategory_id);
+
+            -- Sticker characters (display-mode entries for character view)
+            CREATE TABLE IF NOT EXISTS sticker_characters (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                collection_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                path TEXT NOT NULL,
+                thumbnail TEXT NOT NULL,
+                FOREIGN KEY (collection_id) REFERENCES sticker_collections(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_sticker_characters_collection ON sticker_characters(collection_id);",
         )?;
 
         // Migrate game metadata from OpenVGDB if the games table is empty and vgdb is attached

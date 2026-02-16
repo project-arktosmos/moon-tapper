@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { invoke } from '@tauri-apps/api/core';
+	import { save } from '@tauri-apps/plugin-dialog';
+	import { listen } from '@tauri-apps/api/event';
 	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
 	import TrackGrid from '$components/core/TrackGrid.svelte';
@@ -7,6 +10,7 @@
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
 	import { playlistAdapter } from '$adapters/classes/playlist.adapter';
+	import { lyricsApi, type LyricsFetchResult } from '$api/lyrics';
 	import { FAVORITES_PLAYLIST_ID, type RhythmPlaylist, type PlaylistTrack } from '$types/rhythm.type';
 
 	const dispatch = createEventDispatcher<{
@@ -20,6 +24,11 @@
 	let selectedDiffs: Record<string, string> = $state({});
 	let importError: string | null = $state(null);
 	let fileInputEl: HTMLInputElement;
+
+	// Batch lyrics fetch state
+	let lyricsFetchTotal: number = $state(0);
+	let lyricsFetchDone: number = $state(0);
+	let lyricsFetchActive: boolean = $state(false);
 
 	const playlistsStore = rhythmPlaylistsService.store;
 
@@ -95,16 +104,17 @@
 		dispatch('select', { track: e.detail.item, difficulty: e.detail.difficulty });
 	}
 
-	function handleExportPlaylist(playlist: RhythmPlaylist) {
+	async function handleExportPlaylist(playlist: RhythmPlaylist) {
+		const defaultName = `${playlist.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.json`;
+		const path = await save({
+			defaultPath: defaultName,
+			filters: [{ name: 'JSON', extensions: ['json'] }]
+		});
+		if (!path) return;
+
 		const exportData = playlistAdapter.toExportJSON(playlist);
 		const json = JSON.stringify(exportData, null, 2);
-		const blob = new Blob([json], { type: 'application/json' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `${playlist.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.json`;
-		a.click();
-		URL.revokeObjectURL(url);
+		await invoke('write_text_file', { path, content: json });
 	}
 
 	function handleImportClick() {
@@ -131,6 +141,59 @@
 		};
 		reader.readAsText(file);
 	}
+
+	async function handleFetchAllLyrics(playlist: RhythmPlaylist) {
+		if (lyricsFetchActive || playlist.tracks.length === 0) return;
+
+		// Determine which tracks actually need fetching (skip cached ones)
+		const toFetch: PlaylistTrack[] = [];
+		for (const track of playlist.tracks) {
+			const cached = await lyricsApi.cacheHas(track.songName, track.songAuthorName);
+			if (cached === null) {
+				toFetch.push(track);
+			}
+		}
+
+		if (toFetch.length === 0) return;
+
+		lyricsFetchTotal = toFetch.length;
+		lyricsFetchDone = 0;
+		lyricsFetchActive = true;
+
+		// Collect cache keys we're waiting for
+		const pendingKeys = new Set<string>();
+
+		const unlisten = await listen<LyricsFetchResult>('lyrics:fetch-result', (event) => {
+			if (pendingKeys.delete(event.payload.cacheKey)) {
+				lyricsFetchDone++;
+				if (pendingKeys.size === 0) {
+					lyricsFetchActive = false;
+					unlisten();
+				}
+			}
+		});
+
+		// Enqueue all tracks
+		for (const track of toFetch) {
+			try {
+				const cacheKey = await lyricsApi.fetch(
+					track.songName,
+					track.songAuthorName,
+					null,
+					track.duration
+				);
+				pendingKeys.add(cacheKey);
+			} catch {
+				lyricsFetchDone++;
+			}
+		}
+
+		// If all enqueues failed or set was already empty
+		if (pendingKeys.size === 0) {
+			lyricsFetchActive = false;
+			unlisten();
+		}
+	}
 </script>
 
 {#if selectedPlaylist}
@@ -145,6 +208,20 @@
 			</button>
 			<h2 class="text-xl font-bold flex-1">{selectedPlaylist.name}</h2>
 			<span class="badge badge-ghost">{selectedPlaylist.tracks.length} tracks</span>
+			{#if lyricsFetchActive}
+				<span class="flex items-center gap-2 text-sm opacity-60">
+					<span class="loading loading-spinner loading-xs"></span>
+					{$_('rhythm.lyrics.fetching')} {lyricsFetchDone}/{lyricsFetchTotal}
+				</span>
+			{:else if selectedPlaylist.tracks.length > 0}
+				<Button
+					label={$_('rhythm.lyrics.fetchAll')}
+					color={ThemeColors.Accent}
+					size={ThemeSizes.Small}
+					outline
+					on:click={() => handleFetchAllLyrics(selectedPlaylist)}
+				/>
+			{/if}
 		</div>
 
 		{#if selectedPlaylist.tracks.length === 0}

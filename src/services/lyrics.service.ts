@@ -1,14 +1,14 @@
 import { writable, get, type Writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { listen } from '@tauri-apps/api/event';
 import type { LrcLibResponse, Lyrics, LyricsState, SyncedLyricLine } from '$types/lyrics.type';
-import { lyricsCache } from '$api/lyrics-cache';
-
-const LRCLIB_API_BASE = 'https://lrclib.net/api';
-const USER_AGENT = 'PokemonCardioCompanion/1.0.0 (https://github.com/arktosmos)';
+import { lyricsApi, type LyricsFetchResult } from '$api/lyrics';
 
 class LyricsService {
 	store: Writable<LyricsState>;
 	private cache: Map<string, Lyrics> = new Map();
+	private pendingCacheKey: string | null = null;
+	private pendingResolve: (() => void) | null = null;
 
 	constructor() {
 		this.store = writable<LyricsState>({
@@ -16,6 +16,50 @@ class LyricsService {
 			lyrics: null,
 			error: null
 		});
+
+		if (browser) {
+			this.setupEventListener();
+		}
+	}
+
+	private async setupEventListener(): Promise<void> {
+		await listen<LyricsFetchResult>('lyrics:fetch-result', (event) => {
+			const result = event.payload;
+
+			// Only process if this matches the current pending request
+			if (result.cacheKey !== this.pendingCacheKey) return;
+
+			this.pendingCacheKey = null;
+			this.handleFetchResult(result);
+
+			// Resolve the pending promise so .finally() fires on the caller
+			if (this.pendingResolve) {
+				this.pendingResolve();
+				this.pendingResolve = null;
+			}
+		});
+	}
+
+	private handleFetchResult(result: LyricsFetchResult): void {
+		if (result.status === 'not_found') {
+			this.store.set({ status: 'not_found', lyrics: null, error: null });
+			return;
+		}
+
+		if (result.status === 'error') {
+			this.store.set({
+				status: 'error',
+				lyrics: null,
+				error: result.error ?? 'Failed to fetch lyrics'
+			});
+			return;
+		}
+
+		if (result.status === 'success' && result.data) {
+			const lyrics = this.parseResponse(result.data);
+			this.cache.set(result.cacheKey, lyrics);
+			this.store.set({ status: 'success', lyrics, error: null });
+		}
 	}
 
 	async fetchLyrics(
@@ -35,9 +79,9 @@ class LyricsService {
 			return;
 		}
 
-		// L2: SQLite cache
+		// L2: SQLite cache (via Rust command)
 		try {
-			const dbCached = await lyricsCache.get(cacheKey);
+			const dbCached = await lyricsApi.cacheCheck(trackName, artistName);
 			if (dbCached !== null) {
 				if (!dbCached.found) {
 					this.store.set({ status: 'not_found', lyrics: null, error: null });
@@ -54,46 +98,34 @@ class LyricsService {
 			console.error('Lyrics DB cache error:', e);
 		}
 
-		// L3: API fetch
+		// L3: Enqueue fetch to Rust backend and wait for event
 		this.store.update((s) => ({ ...s, status: 'loading', error: null }));
+		this.pendingCacheKey = cacheKey;
 
 		try {
-			const params = new URLSearchParams();
-			params.set('track_name', trackName);
-			if (artistName) params.set('artist_name', artistName);
-			if (albumName) params.set('album_name', albumName);
-			if (duration && duration > 0) params.set('duration', Math.round(duration).toString());
-
-			const response = await fetch(`${LRCLIB_API_BASE}/get?${params.toString()}`, {
-				headers: { 'Lrclib-Client': USER_AGENT }
+			await lyricsApi.fetch(trackName, artistName, albumName, duration);
+			// Wait for the background worker result via event
+			await new Promise<void>((resolve) => {
+				this.pendingResolve = resolve;
 			});
-
-			if (response.status === 404) {
-				lyricsCache.saveNotFound(cacheKey, trackName, artistName ?? 'unknown').catch(console.error);
-				this.store.set({ status: 'not_found', lyrics: null, error: null });
-				return;
-			}
-
-			if (!response.ok) {
-				throw new Error(`LRCLIB API error: ${response.status}`);
-			}
-
-			const data: LrcLibResponse = await response.json();
-			const lyrics = this.parseResponse(data);
-
-			lyricsCache.save(cacheKey, data).catch(console.error);
-			this.cache.set(cacheKey, lyrics);
-			this.store.set({ status: 'success', lyrics, error: null });
 		} catch (error) {
+			this.pendingCacheKey = null;
+			this.pendingResolve = null;
 			this.store.set({
 				status: 'error',
 				lyrics: null,
-				error: error instanceof Error ? error.message : 'Failed to fetch lyrics'
+				error: error instanceof Error ? error.message : 'Failed to enqueue lyrics fetch'
 			});
 		}
 	}
 
 	clear(): void {
+		// If there's a pending fetch, resolve it so the caller doesn't hang
+		if (this.pendingResolve) {
+			this.pendingResolve();
+			this.pendingResolve = null;
+		}
+		this.pendingCacheKey = null;
 		this.store.set({ status: 'idle', lyrics: null, error: null });
 	}
 
