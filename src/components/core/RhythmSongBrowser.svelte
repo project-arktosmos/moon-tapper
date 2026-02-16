@@ -3,11 +3,15 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
+	import TrackItem from '$components/core/TrackItem.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { beatsaverApi } from '$api/beatsaver';
 	import { beatsaverCache } from '$api/beatsaver-cache';
 	import { lyricsCache } from '$api/lyrics-cache';
-	import type { BeatSaverMap, BeatSaverDiff } from '$types/rhythm.type';
+	import RhythmPlaylistManager from '$components/core/RhythmPlaylistManager.svelte';
+	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
+	import { playlistAdapter } from '$adapters/classes/playlist.adapter';
+	import { FAVORITES_PLAYLIST_ID, type BeatSaverMap, type BeatSaverDiff, type PlaylistTrack, type RhythmPlaylist } from '$types/rhythm.type';
 
 	interface MapCacheStatus {
 		downloaded: boolean;
@@ -16,6 +20,7 @@
 
 	const dispatch = createEventDispatcher<{
 		select: { map: BeatSaverMap; difficulty: string; beatmapFilename: string };
+		playlistSelect: { track: PlaylistTrack; difficulty: string };
 	}>();
 
 	type BrowseCategory = 'CURATED' | 'LAST_PUBLISHED' | 'UPDATED';
@@ -34,6 +39,10 @@
 	let selectedDiffs: Record<string, string> = $state({});
 	let activeCategory: BrowseCategory = $state('CURATED');
 	let cacheStatus: Record<string, MapCacheStatus> = $state({});
+	let browseMode: 'search' | 'playlists' = $state('search');
+	let selectedPlaylists: Record<string, string> = $state({});
+
+	const playlistsStore = rhythmPlaylistsService.store;
 
 	onMount(() => {
 		loadBrowseMaps(activeCategory);
@@ -121,22 +130,58 @@
 		dispatch('select', { map, difficulty: selectedDiff, beatmapFilename: '' });
 	}
 
-	function formatDuration(seconds: number): string {
-		const m = Math.floor(seconds / 60);
-		const s = Math.floor(seconds % 60);
-		return `${m}:${s.toString().padStart(2, '0')}`;
+	function getSelectedPlaylist(mapId: string): string {
+		return selectedPlaylists[mapId] || FAVORITES_PLAYLIST_ID;
 	}
 
-	const diffColors: Record<string, string> = {
-		Easy: 'badge-success',
-		Normal: 'badge-info',
-		Hard: 'badge-warning',
-		Expert: 'badge-error',
-		ExpertPlus: 'badge-secondary'
-	};
+	function handlePlaylistSelectChange(mapId: string, playlistId: string) {
+		selectedPlaylists = { ...selectedPlaylists, [mapId]: playlistId };
+	}
+
+	function handleAddToPlaylist(map: BeatSaverMap, playlistId: string) {
+		const playlist = rhythmPlaylistsService.exists(playlistId);
+		if (!playlist) return;
+		if (playlist.tracks.some((t) => t.id === map.id)) return;
+
+		const track = playlistAdapter.fromBeatSaverMap(map);
+		const updated: RhythmPlaylist = {
+			...playlist,
+			tracks: [...playlist.tracks, track],
+			updatedAt: new Date().toISOString()
+		};
+		rhythmPlaylistsService.update(updated);
+	}
+
+	function handlePlaylistTrackSelect(
+		e: CustomEvent<{ track: PlaylistTrack; difficulty: string }>
+	) {
+		dispatch('playlistSelect', e.detail);
+	}
+
 </script>
 
 <div class="flex flex-col gap-4">
+	<!-- Mode tabs -->
+	<div role="tablist" class="tabs tabs-bordered">
+		<button
+			role="tab"
+			class={classNames('tab', { 'tab-active': browseMode === 'search' })}
+			on:click={() => (browseMode = 'search')}
+		>
+			{$_('rhythm.playlists.tabSearch')}
+		</button>
+		<button
+			role="tab"
+			class={classNames('tab', { 'tab-active': browseMode === 'playlists' })}
+			on:click={() => (browseMode = 'playlists')}
+		>
+			{$_('rhythm.playlists.tabPlaylists')}
+		</button>
+	</div>
+
+	{#if browseMode === 'playlists'}
+		<RhythmPlaylistManager on:select={handlePlaylistTrackSelect} />
+	{:else}
 	<div class="flex gap-2">
 		<input
 			type="text"
@@ -191,70 +236,68 @@
 	{:else}
 		<div class="grid gap-3">
 			{#each maps as map (map.id)}
-				{@const diffs = getDiffs(map)}
-				{@const selected = getSelectedDiff(map)}
 				{@const version = map.versions?.[0]}
 				{@const status = cacheStatus[map.id]}
-				<div class="card card-side bg-base-200 shadow-md">
-					{#if version?.coverURL}
-						<figure class="w-24 shrink-0">
-							<img
-								src={version.coverURL}
-								alt={map.name}
-								class="h-full w-full object-cover"
-							/>
-						</figure>
-					{/if}
-					<div class="card-body gap-1 p-4">
-						<h3 class="card-title text-base">{map.metadata.songName}</h3>
-						<p class="text-sm opacity-60">
-							{map.metadata.songAuthorName}
-							{#if map.metadata.levelAuthorName}
-								<span class="opacity-40">/ mapped by {map.metadata.levelAuthorName}</span>
-							{/if}
-						</p>
-						<div class="flex flex-wrap items-center gap-2">
-							<span class="badge badge-ghost badge-sm">{Math.round(map.metadata.bpm)} BPM</span>
-							<span class="badge badge-ghost badge-sm">{formatDuration(map.metadata.duration)}</span>
-							{#if status?.downloaded}
-								<span class="badge badge-success badge-sm gap-1" title={$_('rhythm.cached')}>
-									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM6.7 11.3l5-5a.7.7 0 0 0-1-1L6.2 9.8 5.3 8.9a.7.7 0 1 0-1 1l1.4 1.4a.7.7 0 0 0 1 0Z"/></svg>
-									{$_('rhythm.downloaded')}
-								</span>
-							{/if}
-							{#if status?.lyricsStatus === 'cached'}
-								<span class="badge badge-accent badge-sm gap-1" title={$_('rhythm.lyrics.cached')}>
-									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
-									{$_('rhythm.lyrics.title')}
-								</span>
-							{:else if status?.lyricsStatus === 'not_found'}
-								<span class="badge badge-ghost badge-sm gap-1 opacity-50" title={$_('rhythm.lyrics.notFound')}>
-									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
-									{$_('rhythm.lyrics.none')}
-								</span>
-							{/if}
-							{#each diffs as diff}
-								<button
-									class={classNames('badge badge-sm cursor-pointer', diffColors[diff.difficulty] || 'badge-neutral', {
-										'badge-outline': diff.difficulty !== selected
-									})}
-									on:click={() => handleDiffSelect(map.id, diff.difficulty)}
-								>
-									{diff.difficulty === 'ExpertPlus' ? 'Expert+' : diff.difficulty}
+				{@const targetPlaylist = $playlistsStore.find((p) => p.id === getSelectedPlaylist(map.id))}
+				<TrackItem
+					coverURL={version?.coverURL || ''}
+					songName={map.metadata.songName}
+					songAuthorName={map.metadata.songAuthorName}
+					levelAuthorName={map.metadata.levelAuthorName}
+					bpm={map.metadata.bpm}
+					duration={map.metadata.duration}
+					diffs={getDiffs(map)}
+					selectedDifficulty={getSelectedDiff(map)}
+					on:diffSelect={(e) => handleDiffSelect(map.id, e.detail.difficulty)}
+					on:play={() => handleSelect(map)}
+				>
+					<svelte:fragment slot="badges">
+						{#if status?.downloaded}
+							<span class="badge badge-success badge-sm gap-1" title={$_('rhythm.cached')}>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM6.7 11.3l5-5a.7.7 0 0 0-1-1L6.2 9.8 5.3 8.9a.7.7 0 1 0-1 1l1.4 1.4a.7.7 0 0 0 1 0Z"/></svg>
+								{$_('rhythm.downloaded')}
+							</span>
+						{/if}
+						{#if status?.lyricsStatus === 'cached'}
+							<span class="badge badge-accent badge-sm gap-1" title={$_('rhythm.lyrics.cached')}>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
+								{$_('rhythm.lyrics.title')}
+							</span>
+						{:else if status?.lyricsStatus === 'not_found'}
+							<span class="badge badge-ghost badge-sm gap-1 opacity-50" title={$_('rhythm.lyrics.notFound')}>
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
+								{$_('rhythm.lyrics.none')}
+							</span>
+						{/if}
+					</svelte:fragment>
+					<svelte:fragment slot="actions">
+						<div class="join">
+							<select
+								class="select select-bordered select-sm join-item"
+								value={getSelectedPlaylist(map.id)}
+								on:change={(e) => handlePlaylistSelectChange(map.id, e.currentTarget.value)}
+							>
+								{#each $playlistsStore as playlist}
+									<option value={playlist.id}>{playlist.name}</option>
+								{/each}
+							</select>
+							{#if targetPlaylist?.tracks.some((t) => t.id === map.id)}
+								<button class="btn btn-sm btn-success join-item" disabled>
+									{$_('rhythm.playlists.added')}
 								</button>
-							{/each}
+							{:else}
+								<button
+									class="btn btn-sm btn-ghost join-item"
+									on:click={() => handleAddToPlaylist(map, getSelectedPlaylist(map.id))}
+								>
+									{$_('rhythm.playlists.add')}
+								</button>
+							{/if}
 						</div>
-						<div class="card-actions mt-1 justify-end">
-							<Button
-								label={$_('rhythm.play')}
-								color={ThemeColors.Primary}
-								size={ThemeSizes.Small}
-								on:click={() => handleSelect(map)}
-							/>
-						</div>
-					</div>
-				</div>
+					</svelte:fragment>
+				</TrackItem>
 			{/each}
 		</div>
+	{/if}
 	{/if}
 </div>

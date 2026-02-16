@@ -1,6 +1,7 @@
 <script lang="ts">
 	import classNames from 'classnames';
 	import manifest from '$data/sticker-manifest.json';
+	import framesManifest from '$data/digimon-frames.json';
 	import type { StickerCollection, StickerCharacter } from '$types/sticker.type';
 	import {
 		stickerThumbnailsStore,
@@ -20,10 +21,32 @@
 	let pickingSprites = $state<{ sprites: string[]; basePath: string } | null>(null);
 	let deletedPaths = $state(new Set<string>());
 	let deleting = $state(false);
+	let pickingFrameSprite = $state<string | null>(null);
+	let pickingFrameCount = $state(0);
+	let cacheBuster = $state(0);
+
+	const digimonFrames = framesManifest as Record<string, number>;
+
+	// Frame selections loaded from _frames/selection.json (persisted on disk)
+	let frameSelections = $state<Record<string, number>>({});
+
+	async function loadFrameSelections() {
+		try {
+			const res = await fetch(`/stickers/digimon/_frames/selection.json?t=${Date.now()}`);
+			if (res.ok) {
+				frameSelections = await res.json();
+			}
+		} catch {
+			// No selections yet — that's fine
+		}
+	}
+
+	loadFrameSelections();
 
 	let collection = $derived(collections[selectedCollectionIdx]);
 	let categories = $derived(collection.categories);
 	let category = $derived(categories[selectedCategoryIdx]);
+
 	let hasSubcategories = $derived(!!category?.subcategories?.length);
 	let subcategory = $derived(
 		hasSubcategories ? category.subcategories![selectedSubcategoryIdx] : null
@@ -89,6 +112,48 @@
 			return encodePath(`${collection.basePath}/${char.path}/${override}`);
 		}
 		return encodePath(`${collection.basePath}/${char.thumbnail}`);
+	}
+
+	function spriteName(sprite: string): string {
+		return sprite.replace(/\.(png|gif)$/i, '');
+	}
+
+	function getSpriteUrl(sprite: string, basePath: string): string {
+		const bust = cacheBuster ? `?v=${cacheBuster}` : '';
+		return encodePath(`${basePath}/${sprite}`) + bust;
+	}
+
+	function hasFrames(sprite: string): boolean {
+		if (collection.id !== 'digimon') return false;
+		const name = spriteName(sprite);
+		return name in digimonFrames;
+	}
+
+	function openFramePicker(sprite: string) {
+		const name = spriteName(sprite);
+		const count = digimonFrames[name];
+		if (!count) return;
+		pickingFrameSprite = sprite;
+		pickingFrameCount = count;
+	}
+
+	async function pickFrame(frameIdx: number) {
+		if (!pickingFrameSprite) return;
+		const name = spriteName(pickingFrameSprite);
+		try {
+			await stickersApi.setFrame(collectionBase(collection), name, frameIdx);
+			frameSelections = { ...frameSelections, [name]: frameIdx };
+			cacheBuster++;
+		} catch (err) {
+			console.error('Failed to set frame:', err);
+		}
+		pickingFrameSprite = null;
+		pickingFrameCount = 0;
+	}
+
+	function closeFramePicker() {
+		pickingFrameSprite = null;
+		pickingFrameCount = 0;
 	}
 
 	function selectCollection(idx: number) {
@@ -310,17 +375,34 @@
 			{:else}
 				<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7">
 					{#each currentSprites.sprites as sprite}
-						<div class="flex flex-col items-center gap-1 rounded-lg bg-base-200 p-2">
-							<img
-								src={encodePath(`${currentSprites.basePath}/${sprite}`)}
-								alt={spriteLabel(sprite)}
-								class="h-32 w-32 object-contain"
-								loading="lazy"
-							/>
-							<span class="line-clamp-2 text-center text-[10px] leading-tight opacity-70">
-								{spriteLabel(sprite)}
-							</span>
-						</div>
+						{#if hasFrames(sprite)}
+							<button
+								class="flex cursor-pointer flex-col items-center gap-1 rounded-lg bg-base-200 p-2 transition-colors hover:bg-base-300"
+								onclick={() => openFramePicker(sprite)}
+							>
+								<img
+									src={getSpriteUrl(sprite, currentSprites.basePath)}
+									alt={spriteLabel(sprite)}
+									class="h-32 w-32 object-contain"
+									loading="lazy"
+								/>
+								<span class="line-clamp-2 text-center text-[10px] leading-tight opacity-70">
+									{spriteLabel(sprite)}
+								</span>
+							</button>
+						{:else}
+							<div class="flex flex-col items-center gap-1 rounded-lg bg-base-200 p-2">
+								<img
+									src={encodePath(`${currentSprites.basePath}/${sprite}`)}
+									alt={spriteLabel(sprite)}
+									class="h-32 w-32 object-contain"
+									loading="lazy"
+								/>
+								<span class="line-clamp-2 text-center text-[10px] leading-tight opacity-70">
+									{spriteLabel(sprite)}
+								</span>
+							</div>
+						{/if}
 					{/each}
 				</div>
 			{/if}
@@ -370,6 +452,57 @@
 					Delete character
 				</button>
 				<button class="btn btn-sm btn-ghost" onclick={closePicker}>
+					Cancel
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Frame picker modal -->
+{#if pickingFrameSprite}
+	{@const name = spriteName(pickingFrameSprite)}
+	{@const selectedFrame = frameSelections[name]}
+	<div class="modal modal-open">
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div class="modal-backdrop" onclick={closeFramePicker}></div>
+		<div class="modal-box max-w-4xl">
+			<div class="mb-4 flex items-center justify-between">
+				<h3 class="text-lg font-bold">
+					Pick frame for {spriteLabel(pickingFrameSprite)}
+				</h3>
+				<button class="btn btn-sm btn-circle btn-ghost" onclick={closeFramePicker}>
+					&#x2715;
+				</button>
+			</div>
+
+			<div class="grid max-h-[60vh] grid-cols-3 gap-3 overflow-auto sm:grid-cols-4 md:grid-cols-6">
+				{#each Array(pickingFrameCount) as _, idx}
+					<button
+						class={classNames(
+							'flex cursor-pointer flex-col items-center gap-1 rounded-lg p-2 transition-colors',
+							{
+								'bg-primary bg-opacity-20 ring-2 ring-primary': selectedFrame === idx || (selectedFrame === undefined && idx === 0),
+								'bg-base-200 hover:bg-base-300': !(selectedFrame === idx || (selectedFrame === undefined && idx === 0))
+							}
+						)}
+						onclick={() => pickFrame(idx)}
+					>
+						<img
+							src={encodePath(`${collection.basePath}/_frames/${name}/${idx}.png`)}
+							alt="Frame {idx}"
+							class="h-24 w-24 object-contain"
+							loading="lazy"
+						/>
+						<span class="text-center text-[10px] leading-tight opacity-70">
+							Frame {idx}
+						</span>
+					</button>
+				{/each}
+			</div>
+
+			<div class="modal-action">
+				<button class="btn btn-sm btn-ghost" onclick={closeFramePicker}>
 					Cancel
 				</button>
 			</div>

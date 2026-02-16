@@ -6,5 +6,13 @@ export const stickersApi = {
 			collectionBase,
 			characterPath
 		});
+	},
+
+	async setFrame(collectionBase: string, spriteName: string, frameIdx: number): Promise<void> {
+		return invoke('sticker_set_frame', {
+			collectionBase,
+			spriteName,
+			frameIdx
+		});
 	}
 };

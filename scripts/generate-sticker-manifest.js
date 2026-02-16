@@ -27,7 +27,7 @@ function scanDirectory(dir) {
 		const fullPath = join(dir, entry);
 		const stat = statSync(fullPath);
 
-		if (stat.isDirectory()) {
+		if (stat.isDirectory() && !entry.startsWith('_')) {
 			dirs.push(entry);
 		} else if (/\.(png|gif)$/i.test(entry)) {
 			files.push(entry);

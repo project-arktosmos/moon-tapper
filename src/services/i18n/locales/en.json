@@ -72,6 +72,24 @@
 			"error": "Failed to load lyrics",
 			"instrumental": "Instrumental",
 			"idle": "Lyrics will appear here"
+		},
+		"playlists": {
+			"title": "My Playlists",
+			"tabSearch": "Search",
+			"tabPlaylists": "My Playlists",
+			"createPlaylist": "Create Playlist",
+			"defaultName": "New Playlist",
+			"noPlaylists": "No playlists yet. Create one to start building your collection.",
+			"noPlaylistsHint": "Create a playlist first",
+			"addToPlaylist": "Add to Playlist",
+			"add": "Add",
+			"added": "Added",
+			"removeTrack": "Remove",
+			"confirmDelete": "Delete this playlist?",
+			"deletePlaylist": "Delete",
+			"renamePlaylist": "Rename",
+			"emptyPlaylist": "This playlist is empty. Add tracks from the Search tab.",
+			"back": "Back to Playlists"
 		}
 	}
 }

@@ -20,7 +20,8 @@
 		BeatMapInfo,
 		RhythmGameState,
 		RhythmPageState,
-		RhythmScore
+		RhythmScore,
+		PlaylistTrack
 	} from '$types/rhythm.type';
 
 	let pageState: RhythmPageState = $state('browsing');
@@ -142,6 +143,50 @@
 		}
 	}
 
+	async function handlePlaylistSelect(
+		e: CustomEvent<{ track: PlaylistTrack; difficulty: string }>
+	) {
+		const { track, difficulty } = e.detail;
+		pageState = 'loading';
+		error = null;
+		scoreSaved = false;
+		lyricsReady = false;
+
+		try {
+			loadingProgress = $_('rhythm.downloading');
+			const map = await beatsaverApi.getMapById(track.id);
+			selectedMap = map;
+			selectedDifficulty = difficulty;
+
+			const version = map.versions?.[0];
+			if (!version) throw new Error('No version available');
+
+			const extracted = await beatsaverApi.downloadMap(version.downloadURL, map.id);
+
+			loadingProgress = $_('rhythm.parsing');
+			mapInfo = beatsaverAdapter.parseInfoDat(extracted.info_dat);
+			extractedData = extracted;
+			parseDifficulty(selectedDifficulty);
+
+			lyricsService
+				.fetchLyrics(
+					selectedMap.metadata.songName,
+					selectedMap.metadata.songAuthorName,
+					null,
+					selectedMap.metadata.duration
+				)
+				.finally(() => {
+					lyricsReady = true;
+				});
+
+			gameCurrentTime = 0;
+			pageState = 'ready';
+		} catch (e) {
+			error = e instanceof Error ? e.message : String(e);
+			pageState = 'browsing';
+		}
+	}
+
 	function handleGameFinish(detail: { state: RhythmGameState }) {
 		finalState = detail.state;
 		pageState = 'results';
@@ -218,7 +263,7 @@
 	{/if}
 
 	{#if pageState === 'browsing'}
-		<RhythmSongBrowser on:select={handleMapSelect} />
+		<RhythmSongBrowser on:select={handleMapSelect} on:playlistSelect={handlePlaylistSelect} />
 
 	{:else if pageState === 'loading'}
 		<div class="flex flex-col items-center justify-center gap-4 py-20">

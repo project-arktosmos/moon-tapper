@@ -51,6 +51,52 @@ fn sticker_delete_character(collection_base: String, character_path: String) -> 
     Ok(())
 }
 
+/// Copy a specific animation frame to the top-level sticker PNG and persist the choice
+/// in _frames/selection.json so the UI can show which frame is selected.
+#[tauri::command]
+fn sticker_set_frame(
+    collection_base: String,
+    sprite_name: String,
+    frame_idx: u32,
+) -> Result<(), String> {
+    let project_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("Cannot resolve project root")?;
+    let stickers_dir = project_root.join("static").join("stickers");
+    let collection_dir = stickers_dir.join(&collection_base);
+
+    let frame_src = collection_dir
+        .join("_frames")
+        .join(&sprite_name)
+        .join(format!("{}.png", frame_idx));
+    let dest = collection_dir.join(format!("{}.png", sprite_name));
+
+    // Validate paths stay within stickers directory
+    let canonical_stickers = stickers_dir.canonicalize().map_err(|e| e.to_string())?;
+    let canonical_src = frame_src.canonicalize().map_err(|e| e.to_string())?;
+    if !canonical_src.starts_with(&canonical_stickers) {
+        return Err("Invalid path: source outside stickers directory".into());
+    }
+
+    // Copy frame to top-level
+    std::fs::copy(&canonical_src, &dest).map_err(|e| e.to_string())?;
+
+    // Update selection.json
+    let selection_path = collection_dir.join("_frames").join("selection.json");
+    let mut selections: serde_json::Map<String, serde_json::Value> =
+        if selection_path.exists() {
+            let data = std::fs::read_to_string(&selection_path).map_err(|e| e.to_string())?;
+            serde_json::from_str(&data).unwrap_or_default()
+        } else {
+            serde_json::Map::new()
+        };
+    selections.insert(sprite_name, serde_json::Value::from(frame_idx as u64));
+    let json = serde_json::to_string_pretty(&selections).map_err(|e| e.to_string())?;
+    std::fs::write(&selection_path, json).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 /// Execute a SELECT query and return results
 /// TypeScript assembles the SQL queries and types, Rust just executes them
 #[tauri::command]
@@ -73,7 +119,8 @@ pub fn run() {
             db_query,
             db_execute,
             beatsaver::beatsaver_download,
-            sticker_delete_character
+            sticker_delete_character,
+            sticker_set_frame
         ]);
 
     #[cfg(desktop)]

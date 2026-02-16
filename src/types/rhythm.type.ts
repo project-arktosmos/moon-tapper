@@ -177,3 +177,32 @@ export interface RhythmScore {
 // --- Page state ---
 
 export type RhythmPageState = 'browsing' | 'loading' | 'ready' | 'playing' | 'results';
+
+// --- Playlist types ---
+
+export interface PlaylistTrackDiff {
+	difficulty: string;
+	characteristic: string;
+}
+
+export interface PlaylistTrack {
+	id: string;
+	songName: string;
+	songAuthorName: string;
+	levelAuthorName: string;
+	bpm: number;
+	duration: number;
+	coverURL: string;
+	diffs: PlaylistTrackDiff[];
+	addedAt: string;
+}
+
+export interface RhythmPlaylist {
+	id: string;
+	name: string;
+	tracks: PlaylistTrack[];
+	createdAt: string;
+	updatedAt: string;
+}
+
+export const FAVORITES_PLAYLIST_ID = 'favorites';

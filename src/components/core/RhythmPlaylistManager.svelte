@@ -1,0 +1,237 @@
+<script lang="ts">
+	import { createEventDispatcher } from 'svelte';
+	import { _ } from 'svelte-i18n';
+	import Button from '$components/core/Button.svelte';
+	import TrackItem from '$components/core/TrackItem.svelte';
+	import { ThemeColors, ThemeSizes } from '$types/core.type';
+	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
+	import { FAVORITES_PLAYLIST_ID, type RhythmPlaylist, type PlaylistTrack } from '$types/rhythm.type';
+
+	const dispatch = createEventDispatcher<{
+		select: { track: PlaylistTrack; difficulty: string };
+	}>();
+
+	let selectedPlaylistId: string | null = $state(null);
+	let renamingId: string | null = $state(null);
+	let renameValue: string = $state('');
+	let confirmDeleteId: string | null = $state(null);
+	let selectedDiffs: Record<string, string> = $state({});
+
+	const playlistsStore = rhythmPlaylistsService.store;
+
+	let selectedPlaylist: RhythmPlaylist | null = $derived(
+		selectedPlaylistId
+			? $playlistsStore.find((p: RhythmPlaylist) => p.id === selectedPlaylistId) || null
+			: null
+	);
+
+	function handleCreatePlaylist() {
+		const now = new Date().toISOString();
+		const playlist: RhythmPlaylist = {
+			id: crypto.randomUUID(),
+			name: $_('rhythm.playlists.defaultName'),
+			tracks: [],
+			createdAt: now,
+			updatedAt: now
+		};
+		rhythmPlaylistsService.add(playlist);
+	}
+
+	function handleOpenPlaylist(id: string) {
+		selectedPlaylistId = id;
+		selectedDiffs = {};
+	}
+
+	function handleBack() {
+		selectedPlaylistId = null;
+		confirmDeleteId = null;
+		renamingId = null;
+	}
+
+	function handleStartRename(playlist: RhythmPlaylist) {
+		renamingId = playlist.id;
+		renameValue = playlist.name;
+	}
+
+	function handleRenameConfirm(playlist: RhythmPlaylist) {
+		if (renameValue.trim()) {
+			rhythmPlaylistsService.update({
+				...playlist,
+				name: renameValue.trim(),
+				updatedAt: new Date().toISOString()
+			});
+		}
+		renamingId = null;
+	}
+
+	function handleRenameKeydown(e: KeyboardEvent, playlist: RhythmPlaylist) {
+		if (e.key === 'Enter') handleRenameConfirm(playlist);
+		if (e.key === 'Escape') renamingId = null;
+	}
+
+	function handleDeleteConfirm(playlist: RhythmPlaylist) {
+		rhythmPlaylistsService.remove(playlist);
+		confirmDeleteId = null;
+		if (selectedPlaylistId === playlist.id) selectedPlaylistId = null;
+	}
+
+	function handleRemoveTrack(playlist: RhythmPlaylist, trackId: string) {
+		rhythmPlaylistsService.update({
+			...playlist,
+			tracks: playlist.tracks.filter((t) => t.id !== trackId),
+			updatedAt: new Date().toISOString()
+		});
+	}
+
+	function getSelectedDiff(track: PlaylistTrack): string {
+		return selectedDiffs[track.id] || track.diffs[0]?.difficulty || 'Normal';
+	}
+
+	function handleDiffSelect(trackId: string, diff: string) {
+		selectedDiffs = { ...selectedDiffs, [trackId]: diff };
+	}
+
+	function handlePlayTrack(track: PlaylistTrack) {
+		dispatch('select', { track, difficulty: getSelectedDiff(track) });
+	}
+</script>
+
+{#if selectedPlaylist}
+	<!-- Detail view -->
+	<div class="flex flex-col gap-4">
+		<div class="flex items-center gap-3">
+			<button class="btn btn-ghost btn-sm" on:click={handleBack}>
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+					<path fill-rule="evenodd" d="M17 10a.75.75 0 0 1-.75.75H5.612l4.158 3.96a.75.75 0 1 1-1.04 1.08l-5.5-5.25a.75.75 0 0 1 0-1.08l5.5-5.25a.75.75 0 1 1 1.04 1.08L5.612 9.25H16.25A.75.75 0 0 1 17 10Z" clip-rule="evenodd" />
+				</svg>
+				{$_('rhythm.playlists.back')}
+			</button>
+			<h2 class="text-xl font-bold flex-1">{selectedPlaylist.name}</h2>
+			<span class="badge badge-ghost">{selectedPlaylist.tracks.length} tracks</span>
+		</div>
+
+		{#if selectedPlaylist.tracks.length === 0}
+			<div class="py-12 text-center opacity-60">
+				{$_('rhythm.playlists.emptyPlaylist')}
+			</div>
+		{:else}
+			<div class="grid gap-3">
+				{#each selectedPlaylist.tracks as track (track.id)}
+					<TrackItem
+						coverURL={track.coverURL}
+						songName={track.songName}
+						songAuthorName={track.songAuthorName}
+						levelAuthorName={track.levelAuthorName}
+						bpm={track.bpm}
+						duration={track.duration}
+						diffs={track.diffs}
+						selectedDifficulty={getSelectedDiff(track)}
+						on:diffSelect={(e) => handleDiffSelect(track.id, e.detail.difficulty)}
+						on:play={() => handlePlayTrack(track)}
+					>
+						<svelte:fragment slot="actions">
+							<button
+								class="btn btn-ghost btn-sm text-error"
+								on:click={() => handleRemoveTrack(selectedPlaylist, track.id)}
+							>
+								{$_('rhythm.playlists.removeTrack')}
+							</button>
+						</svelte:fragment>
+					</TrackItem>
+				{/each}
+			</div>
+		{/if}
+	</div>
+{:else}
+	<!-- List view -->
+	<div class="flex flex-col gap-4">
+		<div class="flex items-center justify-between">
+			<h2 class="text-xl font-bold">{$_('rhythm.playlists.title')}</h2>
+			<Button
+				label={$_('rhythm.playlists.createPlaylist')}
+				color={ThemeColors.Primary}
+				size={ThemeSizes.Small}
+				on:click={handleCreatePlaylist}
+			/>
+		</div>
+
+		{#if $playlistsStore.length === 0}
+			<div class="py-12 text-center opacity-60">
+				{$_('rhythm.playlists.noPlaylists')}
+			</div>
+		{:else}
+			<div class="grid gap-3">
+				{#each $playlistsStore as playlist (playlist.id)}
+					<div
+						class="card bg-base-200 shadow-sm cursor-pointer transition-colors hover:bg-base-300"
+						on:click={() => handleOpenPlaylist(playlist.id)}
+						on:keydown={(e) => e.key === 'Enter' && handleOpenPlaylist(playlist.id)}
+						role="button"
+						tabindex="0"
+					>
+						<div class="card-body flex-row items-center gap-4 p-4">
+							<div class="flex-1 min-w-0">
+								{#if renamingId === playlist.id}
+									<!-- svelte-ignore a11y-autofocus -->
+									<input
+										type="text"
+										class="input input-bordered input-sm w-full max-w-xs"
+										bind:value={renameValue}
+										on:keydown={(e) => handleRenameKeydown(e, playlist)}
+										on:blur={() => handleRenameConfirm(playlist)}
+										on:click|stopPropagation
+										autofocus
+									/>
+								{:else}
+									<h3 class="font-semibold truncate">{playlist.name}</h3>
+									<p class="text-sm opacity-50">
+										{playlist.tracks.length} tracks
+									</p>
+								{/if}
+							</div>
+							<div class="flex items-center gap-1">
+								{#if confirmDeleteId === playlist.id}
+									<span class="text-sm text-error mr-1">{$_('rhythm.playlists.confirmDelete')}</span>
+									<button
+										class="btn btn-error btn-sm"
+										on:click|stopPropagation={() => handleDeleteConfirm(playlist)}
+									>
+										{$_('rhythm.playlists.deletePlaylist')}
+									</button>
+									<button
+										class="btn btn-ghost btn-sm"
+										on:click|stopPropagation={() => (confirmDeleteId = null)}
+									>
+										{$_('common.cancel')}
+									</button>
+								{:else}
+									<button
+										class="btn btn-ghost btn-sm"
+										title={$_('rhythm.playlists.renamePlaylist')}
+										on:click|stopPropagation={() => handleStartRename(playlist)}
+									>
+										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+											<path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+											<path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+										</svg>
+									</button>
+									{#if playlist.id !== FAVORITES_PLAYLIST_ID}
+										<button
+											class="btn btn-ghost btn-sm text-error"
+											title={$_('rhythm.playlists.deletePlaylist')}
+											on:click|stopPropagation={() => (confirmDeleteId = playlist.id)}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+												<path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 1 .7.8l-.5 5.5a.75.75 0 0 1-1.49-.14l.5-5.5a.75.75 0 0 1 .79-.66Zm2.84 0a.75.75 0 0 1 .79.66l.5 5.5a.75.75 0 0 1-1.49.14l-.5-5.5a.75.75 0 0 1 .7-.8Z" clip-rule="evenodd" />
+											</svg>
+										</button>
+									{/if}
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
+{/if}
