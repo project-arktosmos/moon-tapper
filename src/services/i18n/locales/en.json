@@ -1,0 +1,73 @@
+{
+	"common": {
+		"welcome": "Welcome",
+		"hello": "Hello",
+		"goodbye": "Goodbye",
+		"yes": "Yes",
+		"no": "No",
+		"ok": "OK",
+		"cancel": "Cancel",
+		"save": "Save",
+		"delete": "Delete",
+		"edit": "Edit",
+		"close": "Close",
+		"back": "Back",
+		"next": "Next",
+		"previous": "Previous",
+		"submit": "Submit",
+		"search": "Search",
+		"loading": "Loading..."
+	},
+	"navigation": {
+		"home": "Home",
+		"about": "About",
+		"contact": "Contact"
+	},
+	"errors": {
+		"generic": "An error occurred",
+		"notFound": "Not found",
+		"unauthorized": "Unauthorized",
+		"forbidden": "Forbidden",
+		"serverError": "Server error"
+	},
+	"rhythm": {
+		"title": "Rhythm Game",
+		"subtitle": "Search BeatSaver maps and play in Guitar Hero style",
+		"searchPlaceholder": "Search songs on BeatSaver...",
+		"noResults": "No songs found. Try a different search.",
+		"play": "Play",
+		"selectDifficulty": "Select Difficulty",
+		"downloading": "Downloading map...",
+		"parsing": "Loading beatmap...",
+		"score": "Score",
+		"combo": "Combo",
+		"maxCombo": "Max Combo",
+		"perfect": "Perfect",
+		"good": "Good",
+		"miss": "Miss",
+		"accuracy": "Accuracy",
+		"health": "Health",
+		"results": "Results",
+		"grade": "Grade",
+		"playAgain": "Play Again",
+		"backToBrowse": "Back to Browse",
+		"saveScore": "Save Score",
+		"scoreSaved": "Score Saved",
+		"scrollSpeed": "Scroll Speed",
+		"audioOffset": "Audio Offset",
+		"categories": {
+			"curated": "Curated",
+			"latest": "Latest",
+			"updated": "Recently Updated"
+		},
+		"lyrics": {
+			"title": "Lyrics",
+			"synced": "Synced",
+			"fetching": "Fetching lyrics...",
+			"notFound": "No lyrics found",
+			"error": "Failed to load lyrics",
+			"instrumental": "Instrumental",
+			"idle": "Lyrics will appear here"
+		}
+	}
+}

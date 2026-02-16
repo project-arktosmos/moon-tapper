@@ -1,0 +1,18 @@
+[
+	{
+		"path": "/",
+		"name": "Home"
+	},
+	{
+		"path": "/database",
+		"name": "Database"
+	},
+	{
+		"path": "/rhythm",
+		"name": "Rhythm"
+	},
+	{
+		"path": "/stickers",
+		"name": "Stickers"
+	}
+]
