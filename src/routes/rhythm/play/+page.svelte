@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { onMount } from 'svelte';
 	import RhythmGame from '$components/core/RhythmGame.svelte';
 	import RhythmResults from '$components/core/RhythmResults.svelte';
@@ -202,7 +203,7 @@
 	}
 
 	function handleBackToBrowse() {
-		goto('/rhythm');
+		goto(`${base}/rhythm`);
 	}
 
 	onMount(async () => {
@@ -210,7 +211,7 @@
 		const difficulty = $page.url.searchParams.get('difficulty') || 'Normal';
 
 		if (!mapId) {
-			goto('/rhythm');
+			goto(`${base}/rhythm`);
 			return;
 		}
 

@@ -6,7 +6,7 @@
 	import routes from '$lib/routes.json';
 
 	onMount(() => {
-		if (!isTauri()) goto('/search', { replaceState: true });
+		if (!isTauri()) goto(`${base}/search`, { replaceState: true });
 	});
 </script>
 
