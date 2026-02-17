@@ -12,6 +12,10 @@
 		"name": "Database"
 	},
 	{
+		"path": "/music",
+		"name": "Music"
+	},
+	{
 		"path": "/rhythm/play",
 		"name": "Play"
 	},

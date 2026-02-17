@@ -3,16 +3,17 @@
 	import { createEventDispatcher } from 'svelte';
 	import Button from '$components/core/Button.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
-	import type { BeatSaverMap, BeatSaverDiff, LaneMode } from '$types/rhythm.type';
+	import type { BeatSaverMap, BeatSaverDiff, LaneMode, GameMode } from '$types/rhythm.type';
 
 	export let map: BeatSaverMap;
 	export let selectedDifficulty: string;
 	export let laneMode: LaneMode = 4;
-	export let lyricsReady: boolean = false;
+	export let gameMode: GameMode = 'single';
 
 	const dispatch = createEventDispatcher<{
 		difficultyChange: { difficulty: string };
 		laneModeChange: { laneMode: LaneMode };
+		gameModeChange: { gameMode: GameMode };
 		startPlay: void;
 		back: void;
 	}>();
@@ -26,7 +27,15 @@
 	};
 
 	function getDiffs(): BeatSaverDiff[] {
-		return map.versions?.[0]?.diffs || [];
+		const diffs = map.versions?.[0]?.diffs || [];
+		const standard = diffs.filter((d) => d.characteristic === 'Standard');
+		const filtered = standard.length > 0 ? standard : diffs;
+		const seen = new Set<string>();
+		return filtered.filter((d) => {
+			if (seen.has(d.difficulty)) return false;
+			seen.add(d.difficulty);
+			return true;
+		});
 	}
 </script>
 
@@ -72,12 +81,12 @@
 		<div class="join">
 			<button
 				class={classNames('btn btn-sm join-item', {
-					'btn-primary': laneMode === 4,
-					'btn-ghost btn-outline': laneMode !== 4
+					'btn-primary': laneMode === 2,
+					'btn-ghost btn-outline': laneMode !== 2
 				})}
-				onclick={() => dispatch('laneModeChange', { laneMode: 4 })}
+				onclick={() => dispatch('laneModeChange', { laneMode: 2 })}
 			>
-				4 Lanes
+				2 Lanes
 			</button>
 			<button
 				class={classNames('btn btn-sm join-item', {
@@ -90,12 +99,38 @@
 			</button>
 			<button
 				class={classNames('btn btn-sm join-item', {
-					'btn-primary': laneMode === 2,
-					'btn-ghost btn-outline': laneMode !== 2
+					'btn-primary': laneMode === 4,
+					'btn-ghost btn-outline': laneMode !== 4
 				})}
-				onclick={() => dispatch('laneModeChange', { laneMode: 2 })}
+				onclick={() => dispatch('laneModeChange', { laneMode: 4 })}
 			>
-				2 Lanes
+				4 Lanes
+			</button>
+		</div>
+	</div>
+
+	<div class="flex flex-col items-center gap-2">
+		<p class="text-sm font-semibold uppercase tracking-wide opacity-60">
+			Game Mode
+		</p>
+		<div class="join">
+			<button
+				class={classNames('btn btn-sm join-item', {
+					'btn-accent': gameMode === 'single',
+					'btn-ghost btn-outline': gameMode !== 'single'
+				})}
+				onclick={() => dispatch('gameModeChange', { gameMode: 'single' })}
+			>
+				Single
+			</button>
+			<button
+				class={classNames('btn btn-sm join-item', {
+					'btn-accent': gameMode === 'duel',
+					'btn-ghost btn-outline': gameMode !== 'duel'
+				})}
+				onclick={() => dispatch('gameModeChange', { gameMode: 'duel' })}
+			>
+				Duel
 			</button>
 		</div>
 	</div>
@@ -105,15 +140,8 @@
 			label="Play"
 			color={ThemeColors.Primary}
 			size={ThemeSizes.Large}
-			disabled={!lyricsReady}
 			on:click={() => dispatch('startPlay')}
 		/>
-		{#if !lyricsReady}
-			<div class="flex items-center gap-2">
-				<span class="loading loading-spinner loading-sm text-primary"></span>
-				<span class="text-sm opacity-60">Fetching lyrics...</span>
-			</div>
-		{/if}
 	</div>
 
 	<Button

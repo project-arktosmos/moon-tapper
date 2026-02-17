@@ -1,5 +1,12 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import { isTauri } from '$utils/isTauri';
 	import routes from '$lib/routes.json';
+
+	onMount(() => {
+		if (!isTauri()) goto('/search', { replaceState: true });
+	});
 </script>
 
 <div class="max-w-4xl">

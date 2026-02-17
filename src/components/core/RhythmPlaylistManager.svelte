@@ -7,7 +7,6 @@
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
 	import { playlistAdapter } from '$adapters/classes/playlist.adapter';
-	import { lyricsApi, type LyricsFetchResult } from '$api/lyrics';
 	import { beatsaverApi, type TrackFetchResult } from '$api/beatsaver';
 	import { FAVORITES_PLAYLIST_ID, type RhythmPlaylist, type PlaylistTrack } from '$types/rhythm.type';
 
@@ -24,11 +23,6 @@
 	let fileInputEl: HTMLInputElement;
 
 	const tauriAvailable = isTauri();
-
-	// Batch lyrics fetch state
-	let lyricsFetchTotal: number = $state(0);
-	let lyricsFetchDone: number = $state(0);
-	let lyricsFetchActive: boolean = $state(false);
 
 	// Batch track download state
 	let trackFetchTotal: number = $state(0);
@@ -159,60 +153,6 @@
 		reader.readAsText(file);
 	}
 
-	async function handleFetchAllLyrics(playlist: RhythmPlaylist) {
-		if (!tauriAvailable || lyricsFetchActive || playlist.tracks.length === 0) return;
-
-		// Determine which tracks actually need fetching (skip cached ones)
-		const toFetch: PlaylistTrack[] = [];
-		for (const track of playlist.tracks) {
-			const cached = await lyricsApi.cacheHas(track.songName, track.songAuthorName);
-			if (cached === null) {
-				toFetch.push(track);
-			}
-		}
-
-		if (toFetch.length === 0) return;
-
-		lyricsFetchTotal = toFetch.length;
-		lyricsFetchDone = 0;
-		lyricsFetchActive = true;
-
-		// Collect cache keys we're waiting for
-		const pendingKeys = new Set<string>();
-
-		const { listen } = await import('@tauri-apps/api/event');
-		const unlisten = await listen<LyricsFetchResult>('lyrics:fetch-result', (event) => {
-			if (pendingKeys.delete(event.payload.cacheKey)) {
-				lyricsFetchDone++;
-				if (pendingKeys.size === 0) {
-					lyricsFetchActive = false;
-					unlisten();
-				}
-			}
-		});
-
-		// Enqueue all tracks
-		for (const track of toFetch) {
-			try {
-				const cacheKey = await lyricsApi.fetch(
-					track.songName,
-					track.songAuthorName,
-					null,
-					track.duration
-				);
-				pendingKeys.add(cacheKey);
-			} catch {
-				lyricsFetchDone++;
-			}
-		}
-
-		// If all enqueues failed or set was already empty
-		if (pendingKeys.size === 0) {
-			lyricsFetchActive = false;
-			unlisten();
-		}
-	}
-
 	async function handleDownloadAllTracks(playlist: RhythmPlaylist) {
 		if (!tauriAvailable || trackFetchActive || playlist.tracks.length === 0) return;
 
@@ -287,12 +227,7 @@
 					Downloading tracks... {trackFetchDone}/{trackFetchTotal}
 				</span>
 			{/if}
-			{#if lyricsFetchActive}
-				<span class="flex items-center gap-2 text-sm opacity-60">
-					<span class="loading loading-spinner loading-xs"></span>
-					Fetching lyrics... {lyricsFetchDone}/{lyricsFetchTotal}
-				</span>
-			{:else if selectedPlaylist.tracks.length > 0 && tauriAvailable}
+			{#if selectedPlaylist.tracks.length > 0 && tauriAvailable}
 				<Button
 					label="Download All Tracks"
 					color={ThemeColors.Primary}
@@ -300,13 +235,6 @@
 					outline
 					disabled={trackFetchActive}
 					on:click={() => handleDownloadAllTracks(selectedPlaylist)}
-				/>
-				<Button
-					label="Fetch All Lyrics"
-					color={ThemeColors.Accent}
-					size={ThemeSizes.Small}
-					outline
-					on:click={() => handleFetchAllLyrics(selectedPlaylist)}
 				/>
 			{/if}
 		</div>
@@ -455,6 +383,7 @@
 								<div class="grid grid-cols-2 md:grid-cols-4 gap-2" on:click|stopPropagation on:keydown|stopPropagation>
 									{#each playlist.tracks.slice(0, 4) as track (track.id)}
 										<TrackItem
+											id={track.id}
 											coverURL={track.coverURL}
 											songName={track.songName}
 											songAuthorName={track.songAuthorName}

@@ -20,6 +20,7 @@
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 {classes}">
 	{#each items as item (item.id)}
 		<TrackItem
+			id={item.id}
 			coverURL={item.coverURL}
 			songName={item.songName}
 			songAuthorName={item.songAuthorName}

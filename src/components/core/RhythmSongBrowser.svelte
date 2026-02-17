@@ -6,7 +6,6 @@
 	import AdvancedSearchFilters from '$components/core/AdvancedSearchFilters.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { beatsaverApi } from '$api/beatsaver';
-	import { lyricsApi } from '$api/lyrics';
 	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
 	import { playlistAdapter } from '$adapters/classes/playlist.adapter';
 	import {
@@ -18,11 +17,6 @@
 		type PlaylistTrack,
 		type RhythmPlaylist
 	} from '$types/rhythm.type';
-
-	interface MapCacheStatus {
-		downloaded: boolean;
-		lyricsStatus: 'cached' | 'not_found' | 'unknown';
-	}
 
 	const dispatch = createEventDispatcher<{
 		select: { map: BeatSaverMap; difficulty: string; beatmapFilename: string };
@@ -43,7 +37,6 @@
 	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let selectedDiffs: Record<string, string> = $state({});
 	let activeCategory: BrowseCategory = $state('CURATED');
-	let cacheStatus: Record<string, MapCacheStatus> = $state({});
 	let selectedPlaylists: Record<string, string> = $state({});
 	let currentPage = $state(0);
 	let paginationInfo: BeatSaverSearchPaginationInfo | null = $state(null);
@@ -95,34 +88,12 @@
 			const result = await beatsaverApi.getLatestMaps(category);
 			maps = result.docs || [];
 			paginationInfo = result.info ?? null;
-			checkCacheStatus(maps);
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
 			maps = [];
 		} finally {
 			loading = false;
 		}
-	}
-
-	async function checkCacheStatus(loadedMaps: BeatSaverMap[]) {
-		const results: Record<string, MapCacheStatus> = {};
-		await Promise.all(
-			loadedMaps.map(async (map) => {
-				try {
-					const [downloaded, lyrics] = await Promise.all([
-						beatsaverApi.hasDownloadedMap(map.id),
-						lyricsApi.cacheHas(map.metadata.songName, map.metadata.songAuthorName)
-					]);
-					results[map.id] = {
-						downloaded,
-						lyricsStatus: lyrics === null ? 'unknown' : lyrics.hasLyrics ? 'cached' : 'not_found'
-					};
-				} catch {
-					results[map.id] = { downloaded: false, lyricsStatus: 'unknown' };
-				}
-			})
-		);
-		cacheStatus = { ...cacheStatus, ...results };
 	}
 
 	function handleSearchInput(e: Event) {
@@ -150,7 +121,6 @@
 			maps = result.docs || [];
 			paginationInfo = result.info ?? null;
 			currentPage = page;
-			checkCacheStatus(maps);
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
 			maps = [];
@@ -294,26 +264,6 @@
 			on:diffSelect={handleGridDiffSelect}
 			on:play={handleGridPlay}
 		>
-			<svelte:fragment slot="badges" let:item>
-				{@const status = cacheStatus[item.id]}
-				{#if status?.downloaded}
-					<span class="badge badge-success badge-sm gap-1" title="Song data cached locally">
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM6.7 11.3l5-5a.7.7 0 0 0-1-1L6.2 9.8 5.3 8.9a.7.7 0 1 0-1 1l1.4 1.4a.7.7 0 0 0 1 0Z"/></svg>
-						Downloaded
-					</span>
-				{/if}
-				{#if status?.lyricsStatus === 'cached'}
-					<span class="badge badge-accent badge-sm gap-1" title="Lyrics available locally">
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
-						Lyrics
-					</span>
-				{:else if status?.lyricsStatus === 'not_found'}
-					<span class="badge badge-ghost badge-sm gap-1 opacity-50" title="No lyrics found">
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3"><path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1H2V3Zm0 3h12v1H2V6Zm0 3h8v1H2V9Z"/></svg>
-						No lyrics
-					</span>
-				{/if}
-			</svelte:fragment>
 			<svelte:fragment slot="actions" let:item>
 				{@const targetPlaylist = $playlistsStore.find((p) => p.id === getSelectedPlaylist(item.id))}
 				<div class="join">

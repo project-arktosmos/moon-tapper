@@ -7,6 +7,7 @@
 		"dev:android": "pnpm build && tauri android dev",
 		"build": "node scripts/generate-routes.js && vite build",
 		"build:web": "node scripts/generate-routes.js && vite build && node scripts/post-build-web.js",
+		"serve:web": "pnpm build:web && vite dev --port 4173 --open",
 		"build:android": "export $(grep -v '^#' .env | xargs) && pnpm build && tauri android build --apk",
 		"preview": "vite preview",
 		"prepare": "node scripts/generate-routes.js && svelte-kit sync || echo ''",
@@ -17,7 +18,6 @@
 		"test": "vitest run",
 		"test:ui": "vitest --ui",
 		"test:coverage": "vitest run --coverage",
-		"import:cheats": "node scripts/import-cheats.js",
 		"remove-sprite-bg": "python3 scripts/remove-sprite-bg.py",
 		"clean": "rm -rf dist .svelte-kit",
 		"tauri": "tauri",
@@ -39,7 +39,9 @@
 		"@tauri-apps/api": "^2.0.0",
 		"@tauri-apps/plugin-dialog": "^2.6.0",
 		"@tauri-apps/plugin-shell": "^2.0.0",
-		"classnames": "^2.5.1"
+		"classnames": "^2.5.1",
+		"fflate": "^0.8.2",
+		"web-audio-beat-detector": "^8.2.35"
 	},
 	"devDependencies": {
 		"@sveltejs/kit": "^2.22.0",

@@ -31,7 +31,7 @@
     "active": true,
     "targets": "all",
     "icon": [],
-    "resources": ["resources/openvgdb.sqlite"],
+    "resources": [],
     "linux": {
       "appimage": {
         "bundleMediaFramework": true

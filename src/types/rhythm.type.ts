@@ -302,7 +302,7 @@ export interface RhythmScore {
 // --- Lane mode ---
 
 export type LaneMode = 2 | 3 | 4;
-export const DEFAULT_LANE_MODE: LaneMode = 4;
+export const DEFAULT_LANE_MODE: LaneMode = 3;
 
 // --- Game session state ---
 
@@ -336,6 +336,13 @@ export interface RhythmPlaylist {
 }
 
 export const FAVORITES_PLAYLIST_ID = 'favorites';
+
+// --- Game mode ---
+
+export type GameMode = 'single' | 'duel';
+export const DEFAULT_GAME_MODE: GameMode = 'single';
+
+export type DuelWinner = 'player1' | 'player2' | 'draw';
 
 // --- Playlist import/export ---
 

@@ -4,7 +4,7 @@
 	import { onMount } from 'svelte';
 	import RhythmGame from '$components/core/RhythmGame.svelte';
 	import RhythmResults from '$components/core/RhythmResults.svelte';
-	import RhythmLyricsPanel from '$components/core/RhythmLyricsPanel.svelte';
+	import RhythmDuelResults from '$components/core/RhythmDuelResults.svelte';
 	import RhythmDifficultySelect from '$components/core/RhythmDifficultySelect.svelte';
 	import Button from '$components/core/Button.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
@@ -12,7 +12,7 @@
 	import { beatsaverAdapter } from '$adapters/classes/beatsaver.adapter';
 	import { rhythmSettingsService } from '$services/rhythm-settings.service';
 	import { rhythmScoresService } from '$services/rhythm-scores.service';
-	import { lyricsService } from '$services/lyrics.service';
+	import { determineDuelWinner } from '$utils/rhythm/determineDuelWinner';
 	import type {
 		BeatSaverMap,
 		BeatSaverMapExtracted,
@@ -22,9 +22,10 @@
 		GameSessionState,
 		RhythmScore,
 		LaneMode,
-		LaneBinding
+		LaneBinding,
+		GameMode
 	} from '$types/rhythm.type';
-	import { DEFAULT_LANE_MODE, DEFAULT_LANE_MODE_BINDINGS } from '$types/rhythm.type';
+	import { DEFAULT_LANE_MODE, DEFAULT_LANE_MODE_BINDINGS, DEFAULT_GAME_MODE } from '$types/rhythm.type';
 	import { condenseTo2Lanes, condenseTo3Lanes } from '$utils/rhythm/condenseLanes';
 
 	let sessionState: GameSessionState = $state('loading');
@@ -40,19 +41,23 @@
 	let audioBase64: string = $state('');
 	let mapInfo: BeatMapInfo | null = $state(null);
 
-	// Results
+	// Results (single mode)
 	let finalState: RhythmGameState | null = $state(null);
 	let scoreSaved = $state(false);
 
-	// Lyrics playback time
-	let gameCurrentTime: number = $state(0);
-
 	// Extracted data for difficulty switching
 	let extractedData: BeatSaverMapExtracted | null = $state(null);
-	let lyricsReady = $state(false);
 
 	// Lane mode (per-session, not persisted)
 	let laneMode: LaneMode = $state(DEFAULT_LANE_MODE);
+
+	// Game mode
+	let gameMode: GameMode = $state(DEFAULT_GAME_MODE);
+
+	// Duel state
+	let player1State: RhythmGameState | null = $state(null);
+	let player2State: RhythmGameState | null = $state(null);
+	let duelFinishedCount = $state(0);
 
 	// Derived game data based on lane mode
 	let gameBeatMap: BeatMap | null = $derived.by(() => {
@@ -106,8 +111,11 @@
 		laneMode = e.detail.laneMode;
 	}
 
+	function handleGameModeChange(e: CustomEvent<{ gameMode: GameMode }>) {
+		gameMode = e.detail.gameMode;
+	}
+
 	function handleStartPlay() {
-		gameCurrentTime = 0;
 		sessionState = 'playing';
 	}
 
@@ -116,8 +124,36 @@
 		sessionState = 'results';
 	}
 
-	function handleTimeUpdate(time: number) {
-		gameCurrentTime = time;
+	function handlePlayer1Finish(detail: { state: RhythmGameState }) {
+		player1State = detail.state;
+		duelFinishedCount++;
+		checkDuelComplete();
+	}
+
+	function handlePlayer2Finish(detail: { state: RhythmGameState }) {
+		player2State = detail.state;
+		duelFinishedCount++;
+		checkDuelComplete();
+	}
+
+	function checkDuelComplete() {
+		if (duelFinishedCount >= 2) {
+			sessionState = 'results';
+		}
+	}
+
+	function handleDuelEscape(e: KeyboardEvent) {
+		if (e.code === 'Escape' && sessionState === 'playing' && gameMode === 'duel') {
+			sessionState = 'results';
+			if (!player1State) {
+				player1State = { score: 0, combo: 0, maxCombo: 0, perfect: 0, good: 0, miss: 0, health: 0 };
+				duelFinishedCount++;
+			}
+			if (!player2State) {
+				player2State = { score: 0, combo: 0, maxCombo: 0, perfect: 0, good: 0, miss: 0, health: 0 };
+				duelFinishedCount++;
+			}
+		}
 	}
 
 	function handleSaveScore() {
@@ -148,13 +184,14 @@
 		if (beatMap && audioBase64) {
 			scoreSaved = false;
 			finalState = null;
-			gameCurrentTime = 0;
+			player1State = null;
+			player2State = null;
+			duelFinishedCount = 0;
 			sessionState = 'playing';
 		}
 	}
 
 	function handleBackToBrowse() {
-		lyricsService.clear();
 		goto('/rhythm');
 	}
 
@@ -184,24 +221,16 @@
 			extractedData = extracted;
 			parseDifficulty(selectedDifficulty);
 
-			// Start lyrics fetch in background (don't block)
-			lyricsService
-				.fetchLyrics(
-					map.metadata.songName,
-					map.metadata.songAuthorName,
-					null,
-					map.metadata.duration
-				)
-				.finally(() => {
-					lyricsReady = true;
-				});
-
-			gameCurrentTime = 0;
 			sessionState = 'ready';
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
 			sessionState = 'loading';
 		}
+
+		window.addEventListener('keydown', handleDuelEscape);
+		return () => {
+			window.removeEventListener('keydown', handleDuelEscape);
+		};
 	});
 </script>
 
@@ -237,16 +266,51 @@
 		map={selectedMap}
 		{selectedDifficulty}
 		{laneMode}
-		{lyricsReady}
+		{gameMode}
 		on:difficultyChange={handleDifficultyChange}
 		on:laneModeChange={handleLaneModeChange}
+		on:gameModeChange={handleGameModeChange}
 		on:startPlay={handleStartPlay}
 		on:back={handleBackToBrowse}
 	/>
 
-{:else if sessionState === 'playing' && gameBeatMap}
-	<div class="flex gap-4">
-		<div class="flex-1 min-w-0">
+{:else if sessionState === 'playing' && gameBeatMap && gameMode === 'single'}
+	<RhythmGame
+		beatMap={gameBeatMap}
+		{audioBase64}
+		scrollSpeed={settings.scrollSpeed}
+		volume={settings.volume}
+		keyBindings={gameKeyBindings}
+		offset={settings.offset}
+		{laneMode}
+		onfinish={handleGameFinish}
+	/>
+
+{:else if sessionState === 'playing' && gameBeatMap && gameMode === 'duel'}
+	<div class="fixed inset-0 z-50 flex flex-col bg-base-100">
+		<!-- Player 2 (top, rotated 180deg for face-to-face mobile play) -->
+		<div class="relative flex-1 rotate-180 overflow-hidden">
+			<RhythmGame
+				beatMap={gameBeatMap}
+				{audioBase64}
+				scrollSpeed={settings.scrollSpeed}
+				volume={0}
+				keyBindings={gameKeyBindings}
+				offset={settings.offset}
+				{laneMode}
+				compact
+				disableKeyboard
+				onfinish={handlePlayer2Finish}
+			/>
+		</div>
+
+		<!-- VS divider -->
+		<div class="flex h-8 shrink-0 items-center justify-center bg-base-300">
+			<span class="text-xs font-bold uppercase tracking-widest opacity-60">VS</span>
+		</div>
+
+		<!-- Player 1 (bottom, normal orientation) -->
+		<div class="relative flex-1 overflow-hidden">
 			<RhythmGame
 				beatMap={gameBeatMap}
 				{audioBase64}
@@ -255,14 +319,23 @@
 				keyBindings={gameKeyBindings}
 				offset={settings.offset}
 				{laneMode}
-				onfinish={handleGameFinish}
-				ontimeupdate={handleTimeUpdate}
+				compact
+				disableKeyboard
+				onfinish={handlePlayer1Finish}
 			/>
 		</div>
-		<div class="hidden w-72 lg:block" style="height: 70vh;">
-			<RhythmLyricsPanel currentTime={gameCurrentTime} />
-		</div>
 	</div>
+
+{:else if sessionState === 'results' && gameMode === 'duel' && player1State && player2State}
+	<RhythmDuelResults
+		{player1State}
+		{player2State}
+		winner={determineDuelWinner(player1State, player2State)}
+		songName={selectedMap?.metadata.songName || ''}
+		difficulty={selectedDifficulty}
+		onplayAgain={handlePlayAgain}
+		onbrowse={handleBackToBrowse}
+	/>
 
 {:else if sessionState === 'results' && finalState}
 	<RhythmResults

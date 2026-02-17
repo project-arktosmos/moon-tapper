@@ -5,8 +5,11 @@
 	import { afterNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { initTheme } from '$services/theme';
+	import { isTauri } from '$utils/isTauri';
 
 	let { children } = $props();
+
+	const showSidebar = isTauri();
 
 	onMount(() => {
 		initTheme();
@@ -19,6 +22,7 @@
 	});
 </script>
 
+{#if showSidebar}
 <div class="drawer lg:drawer-open">
 	<input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
 
@@ -90,3 +94,8 @@
 		</aside>
 	</div>
 </div>
+{:else}
+<main class="min-h-screen p-6">
+	{@render children?.()}
+</main>
+{/if}

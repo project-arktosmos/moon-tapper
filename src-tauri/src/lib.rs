@@ -1,10 +1,4 @@
 mod beatsaver;
-mod db;
-mod lyrics;
-
-use db::{Database, ExecuteResult, QueryResult};
-use serde_json::Value as JsonValue;
-use tauri::State;
 
 #[cfg(desktop)]
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
@@ -18,28 +12,12 @@ fn write_text_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, &content).map_err(|e| e.to_string())
 }
 
-/// Execute a SELECT query and return results
-/// TypeScript assembles the SQL queries and types, Rust just executes them
-#[tauri::command]
-fn db_query(sql: String, params: Vec<JsonValue>, db: State<Database>) -> Result<QueryResult, String> {
-    db.query(&sql, params).map_err(|e| e.to_string())
-}
-
-/// Execute an INSERT/UPDATE/DELETE statement
-/// Returns rows affected and last insert ID for INSERTs
-#[tauri::command]
-fn db_execute(sql: String, params: Vec<JsonValue>, db: State<Database>) -> Result<ExecuteResult, String> {
-    db.execute(&sql, params).map_err(|e| e.to_string())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            db_query,
-            db_execute,
             beatsaver::beatsaver_download,
             beatsaver::beatsaver_search,
             beatsaver::beatsaver_browse,
@@ -47,9 +25,6 @@ pub fn run() {
             beatsaver::beatsaver_has_download,
             beatsaver::beatsaver_download_track,
             beatsaver::beatsaver_fetch_track,
-            lyrics::lyrics_cache_check,
-            lyrics::lyrics_cache_has,
-            lyrics::lyrics_fetch,
             write_text_file
         ]);
 
@@ -93,22 +68,6 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            // Resolve the bundled OpenVGDB database path
-            let openvgdb_path = app
-                .path()
-                .resource_dir()
-                .ok()
-                .map(|dir| dir.join("resources/openvgdb.sqlite"));
-
-            let db = Database::new(app.handle(), openvgdb_path)?;
-            db.init().expect("Failed to initialize database");
-            app.manage(db);
-
-            // Initialize lyrics queue worker
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-            app.manage(lyrics::LyricsQueue { tx });
-            lyrics::spawn_lyrics_worker(app.handle().clone(), rx);
-
             // Initialize track download queue worker
             let (track_tx, track_rx) = tokio::sync::mpsc::unbounded_channel();
             app.manage(beatsaver::TrackQueue { tx: track_tx });

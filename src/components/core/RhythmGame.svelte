@@ -14,6 +14,8 @@
 		keyBindings?: Record<number, LaneBinding>;
 		offset?: number;
 		laneMode?: LaneMode;
+		compact?: boolean;
+		disableKeyboard?: boolean;
 		onfinish?: (detail: { state: RhythmGameState }) => void;
 		ontimeupdate?: (time: number) => void;
 	}
@@ -26,6 +28,8 @@
 		keyBindings = DEFAULT_LANE_MODE_BINDINGS[4],
 		offset = 0,
 		laneMode = 4,
+		compact = false,
+		disableKeyboard = false,
 		onfinish,
 		ontimeupdate
 	}: Props = $props();
@@ -308,13 +312,17 @@
 		if (gameAreaRef) {
 			gameAreaHeight = gameAreaRef.clientHeight;
 		}
-		window.addEventListener('keydown', handleKeyDown);
-		window.addEventListener('keyup', handleKeyUp);
+		if (!disableKeyboard) {
+			window.addEventListener('keydown', handleKeyDown);
+			window.addEventListener('keyup', handleKeyUp);
+		}
 		startGame();
 
 		return () => {
-			window.removeEventListener('keydown', handleKeyDown);
-			window.removeEventListener('keyup', handleKeyUp);
+			if (!disableKeyboard) {
+				window.removeEventListener('keydown', handleKeyDown);
+				window.removeEventListener('keyup', handleKeyUp);
+			}
 			cleanup();
 		};
 	});
@@ -324,12 +332,12 @@
 	});
 </script>
 
-<div class="relative flex flex-col items-center gap-2">
+<div class={classNames('relative flex flex-col items-center', compact ? 'h-full gap-0.5' : 'gap-2')}>
 	<!-- HUD -->
-	<div class="flex w-full max-w-lg items-center justify-between px-2">
+	<div class={classNames('flex w-full max-w-lg items-center justify-between px-2', { 'py-0.5': compact })}>
 		<div class="flex items-center gap-4">
-			<span class="text-2xl font-bold tabular-nums">{gameState.score}</span>
-			<span class={classNames('text-lg font-semibold tabular-nums', {
+			<span class={classNames('font-bold tabular-nums', compact ? 'text-lg' : 'text-2xl')}>{gameState.score}</span>
+			<span class={classNames('font-semibold tabular-nums', compact ? 'text-sm' : 'text-lg', {
 				'text-warning': gameState.combo >= 10,
 				'text-error': gameState.combo >= 50
 			})}>
@@ -339,7 +347,7 @@
 		<div class="flex items-center gap-2">
 			<span class="text-sm opacity-60">HP</span>
 			<progress
-				class={classNames('progress w-32', {
+				class={classNames('progress', compact ? 'w-20' : 'w-32', {
 					'progress-success': gameState.health > 60,
 					'progress-warning': gameState.health > 30 && gameState.health <= 60,
 					'progress-error': gameState.health <= 30
@@ -353,8 +361,11 @@
 	<!-- Game area -->
 	<div
 		bind:this={gameAreaRef}
-		class="relative w-full max-w-lg overflow-hidden rounded-lg border-2 border-base-300 bg-base-300/50"
-		style="height: 70vh;"
+		class={classNames(
+			'relative w-full max-w-lg overflow-hidden rounded-lg border-2 border-base-300 bg-base-300/50',
+			compact ? 'flex-1' : ''
+		)}
+		style={compact ? undefined : 'height: 70vh;'}
 	>
 		<!-- Lane backgrounds -->
 		<div class="absolute inset-0 flex">
@@ -475,8 +486,10 @@
 	</div>
 
 	<!-- Key hints -->
-	<div class="flex w-full max-w-lg justify-center gap-4 text-sm opacity-40">
-		<span>{#each laneKeys as key}<kbd class="kbd kbd-sm">{key}</kbd>{/each} to hit</span>
-		<span><kbd class="kbd kbd-sm">Esc</kbd> to quit</span>
-	</div>
+	{#if !compact}
+		<div class="flex w-full max-w-lg justify-center gap-4 text-sm opacity-40">
+			<span>{#each laneKeys as key}<kbd class="kbd kbd-sm">{key}</kbd>{/each} to hit</span>
+			<span><kbd class="kbd kbd-sm">Esc</kbd> to quit</span>
+		</div>
+	{/if}
 </div>
