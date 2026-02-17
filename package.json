@@ -4,8 +4,9 @@
 	"type": "module",
 	"scripts": {
 		"dev": "tauri dev",
-		"dev:qq": "node scripts/generate-qq-locale.js",
+		"dev:android": "pnpm build && tauri android dev",
 		"build": "node scripts/generate-routes.js && vite build",
+		"build:android": "export $(grep -v '^#' .env | xargs) && pnpm build && tauri android build --apk",
 		"preview": "vite preview",
 		"prepare": "node scripts/generate-routes.js && svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -27,6 +28,7 @@
 		"tauri:android:init": "tauri android init",
 		"tauri:android:dev": "tauri android dev",
 		"tauri:android:build": "tauri android build",
+		"tauri:android:build:apk": "tauri android build --apk",
 		"tauri:ios:init": "tauri ios init",
 		"tauri:ios:dev": "tauri ios dev",
 		"tauri:ios:build": "tauri ios build"
@@ -36,8 +38,7 @@
 		"@tauri-apps/api": "^2.0.0",
 		"@tauri-apps/plugin-dialog": "^2.6.0",
 		"@tauri-apps/plugin-shell": "^2.0.0",
-		"classnames": "^2.5.1",
-		"svelte-i18n": "^4.0.1"
+		"classnames": "^2.5.1"
 	},
 	"devDependencies": {
 		"@sveltejs/kit": "^2.22.0",

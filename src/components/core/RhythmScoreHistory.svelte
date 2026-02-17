@@ -1,6 +1,5 @@
 <script lang="ts">
 	import classNames from 'classnames';
-	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { rhythmScoresService } from '$services/rhythm-scores.service';
@@ -49,15 +48,15 @@
 		<div class="flex justify-end">
 			{#if confirmClear}
 				<div class="flex items-center gap-2">
-					<span class="text-sm text-error">{$_('rhythm.scores.confirmClear')}</span>
+					<span class="text-sm text-error">Delete all scores?</span>
 					<Button
-						label={$_('common.delete')}
+						label="Delete"
 						color={ThemeColors.Error}
 						size={ThemeSizes.Small}
 						on:click={handleClearAll}
 					/>
 					<Button
-						label={$_('common.cancel')}
+						label="Cancel"
 						color={ThemeColors.Neutral}
 						size={ThemeSizes.Small}
 						outline
@@ -66,7 +65,7 @@
 				</div>
 			{:else}
 				<Button
-					label={$_('rhythm.scores.clearAll')}
+					label="Clear All Scores"
 					color={ThemeColors.Error}
 					size={ThemeSizes.Small}
 					outline
@@ -78,20 +77,20 @@
 
 	{#if sortedScores.length === 0}
 		<div class="py-16 text-center opacity-60">
-			{$_('rhythm.scores.noScores')}
+			No scores yet. Play some songs to see your history!
 		</div>
 	{:else}
 		<div class="overflow-x-auto">
 			<table class="table">
 				<thead>
 					<tr>
-						<th>{$_('rhythm.scores.songName')}</th>
-						<th>{$_('rhythm.scores.difficulty')}</th>
-						<th>{$_('rhythm.scores.grade')}</th>
-						<th>{$_('rhythm.scores.score')}</th>
-						<th>{$_('rhythm.scores.maxCombo')}</th>
-						<th>{$_('rhythm.scores.accuracy')}</th>
-						<th>{$_('rhythm.scores.date')}</th>
+						<th>Song</th>
+						<th>Difficulty</th>
+						<th>Grade</th>
+						<th>Score</th>
+						<th>Max Combo</th>
+						<th>Accuracy</th>
+						<th>Date</th>
 					</tr>
 				</thead>
 				<tbody>

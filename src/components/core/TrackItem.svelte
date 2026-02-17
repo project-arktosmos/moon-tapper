@@ -1,7 +1,6 @@
 <script lang="ts">
 	import classNames from 'classnames';
 	import { createEventDispatcher } from 'svelte';
-	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 
@@ -72,7 +71,7 @@
 		<div class="card-actions mt-1 justify-end items-center">
 			<slot name="actions" />
 			<Button
-				label={$_('rhythm.play')}
+				label="Play"
 				color={ThemeColors.Primary}
 				size={ThemeSizes.Small}
 				on:click={() => dispatch('play')}

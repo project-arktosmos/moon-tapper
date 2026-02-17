@@ -1,15 +1,17 @@
 <script lang="ts">
 	import classNames from 'classnames';
 	import { onMount } from 'svelte';
-	import type { BeatMap, GameNote, RhythmGameState, LaneMode } from '$types/rhythm.type';
-	import { DEFAULT_RHYTHM_GAME_STATE } from '$types/rhythm.type';
+	import type { BeatMap, GameNote, RhythmGameState, LaneMode, LaneBinding } from '$types/rhythm.type';
+	import { DEFAULT_RHYTHM_GAME_STATE, DEFAULT_LANE_MODE_BINDINGS } from '$types/rhythm.type';
+	import { getInputLabel } from '$utils/rhythm/getInputLabel';
+	import { createGamepadInputState, pollGamepadInputs, getHeldGamepadInputs } from '$utils/rhythm/gamepadInput';
 
 	interface Props {
 		beatMap: BeatMap;
 		audioBase64: string;
 		scrollSpeed?: number;
 		volume?: number;
-		keyBindings?: Record<number, string>;
+		keyBindings?: Record<number, LaneBinding>;
 		offset?: number;
 		laneMode?: LaneMode;
 		onfinish?: (detail: { state: RhythmGameState }) => void;
@@ -21,7 +23,7 @@
 		audioBase64,
 		scrollSpeed = 1.0,
 		volume = 0.8,
-		keyBindings = { 0: 'KeyD', 1: 'KeyF', 2: 'KeyJ', 3: 'KeyK' },
+		keyBindings = DEFAULT_LANE_MODE_BINDINGS[4],
 		offset = 0,
 		laneMode = 4,
 		onfinish,
@@ -39,24 +41,26 @@
 	const COUNTDOWN_SECONDS = 3;
 
 	// Lane configuration
-	const LANE_COLORS_4 = ['bg-error', 'bg-success', 'bg-info', 'bg-warning'];
-	const LANE_COLORS_3 = ['bg-error', 'bg-info', 'bg-warning'];
-	const LANE_KEYS_4 = ['D', 'F', 'J', 'K'];
-	const LANE_KEYS_3 = ['F', '\u2423', 'J'];
+	const LANE_COLORS_MAP: Record<number, string[]> = {
+		2: ['bg-error', 'bg-warning'],
+		3: ['bg-error', 'bg-info', 'bg-warning'],
+		4: ['bg-error', 'bg-success', 'bg-info', 'bg-warning']
+	};
 	const ROW_SIZES: Record<number, string> = { 0: 'h-8 w-12', 1: 'h-7 w-11', 2: 'h-6 w-10' };
 	const ROW_OPACITY: Record<number, string> = { 0: 'opacity-100', 1: 'opacity-80', 2: 'opacity-60' };
 
-	let laneColors = $derived(laneMode === 3 ? LANE_COLORS_3 : LANE_COLORS_4);
-	let laneKeys = $derived(laneMode === 3 ? LANE_KEYS_3 : LANE_KEYS_4);
+	let laneColors = $derived(LANE_COLORS_MAP[laneMode] || LANE_COLORS_MAP[4]);
+	let laneKeys = $derived(Object.values(keyBindings).map((b) => getInputLabel(b.keyboard)));
 	let laneCount = $derived(laneMode as number);
 	let laneWidthPercent = $derived(100 / laneCount);
 	let laneIndices = $derived([...Array(laneCount).keys()]);
 
-	// Build reverse key map (code → column index)
+	// Build reverse key map (code → column index) from both keyboard and gamepad bindings
 	let reverseKeyMap: Record<string, number> = $derived.by(() => {
 		const map: Record<string, number> = {};
-		for (const [col, code] of Object.entries(keyBindings)) {
-			map[code] = Number(col);
+		for (const [col, binding] of Object.entries(keyBindings)) {
+			map[binding.keyboard] = Number(col);
+			if (binding.gamepad) map[binding.gamepad] = Number(col);
 		}
 		return map;
 	});
@@ -83,6 +87,9 @@
 	let pressedLanes: boolean[] = $state(Array(4).fill(false));
 	let laneFlash: number[] = $state(Array(4).fill(0));
 	let hitFeedback: { text: string; column: number; time: number }[] = $state([]);
+
+	// Gamepad state
+	let gpState = createGamepadInputState();
 
 	// Computed: visible notes window
 	let visibleNotes: GameNote[] = $derived.by(() => {
@@ -142,8 +149,24 @@
 		currentTime = getAudioTime();
 		ontimeupdate?.(currentTime);
 		checkMissedNotes();
+		pollGamepad();
 		updateFlashes();
 		animFrameId = requestAnimationFrame(gameLoop);
+	}
+
+	function pollGamepad() {
+		const gpPressed = pollGamepadInputs(gpState);
+		for (const code of gpPressed) {
+			const col = reverseKeyMap[code];
+			if (col !== undefined) handleHit(col);
+		}
+		const gpHeld = getHeldGamepadInputs();
+		for (let i = 0; i < laneCount; i++) {
+			const binding = keyBindings[i];
+			if (binding?.gamepad && pressedLanes[i] && !gpHeld.includes(binding.gamepad)) {
+				handleRelease(i);
+			}
+		}
 	}
 
 	function checkMissedNotes() {
@@ -419,10 +442,18 @@
 		<!-- Hit zone targets -->
 		<div class="absolute bottom-4 left-0 right-0 flex">
 			{#each laneIndices as col}
-				<div class="flex flex-1 items-center justify-center">
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="flex flex-1 items-center justify-center touch-none select-none"
+					onpointerdown={(e) => { e.preventDefault(); handleHit(col); }}
+					onpointerup={() => handleRelease(col)}
+					onpointercancel={() => handleRelease(col)}
+					onpointerleave={() => { if (pressedLanes[col]) handleRelease(col); }}
+					oncontextmenu={(e) => e.preventDefault()}
+				>
 					<div
 						class={classNames(
-							'flex h-14 w-14 items-center justify-center rounded-full border-2 text-lg font-bold transition-transform',
+							'pointer-events-none flex h-14 w-14 items-center justify-center rounded-full border-2 text-lg font-bold transition-transform',
 							{
 								[`${laneColors[col]} scale-110 border-transparent`]: pressedLanes[col],
 								'border-base-content/30 bg-base-100/50': !pressedLanes[col]

@@ -133,7 +133,7 @@
 				<div class="card bg-base-200">
 					<div class="card-body p-0">
 						<button
-							class="flex w-full items-center justify-between p-4 text-left hover:bg-base-300 transition-colors rounded-t-2xl"
+							class="flex w-full items-center justify-between p-4 text-left hover:bg-base-300 active:bg-base-300 transition-colors rounded-t-2xl"
 							onclick={() => toggleTable(table.name)}
 						>
 							<div class="flex items-center gap-3">

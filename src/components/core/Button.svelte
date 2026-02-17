@@ -13,6 +13,7 @@
 	export let size: ThemeSizes = ThemeSizes.Medium;
 	export let target: string = '_self';
 	export let join: boolean = false;
+	export let preventDefaultTouch: boolean = false;
 	export let classes = '';
 	const dispatch = createEventDispatcher();
 
@@ -62,8 +63,8 @@
 	</a>
 {:else}
 	<button
-		on:touchstart|preventDefault={(e) => dispatch('touchstart', { e })}
-		on:touchend|preventDefault={(e) => dispatch('touchend', { e })}
+		on:touchstart={(e) => { if (preventDefaultTouch) e.preventDefault(); dispatch('touchstart', { e }); }}
+		on:touchend={(e) => { if (preventDefaultTouch) e.preventDefault(); dispatch('touchend', { e }); }}
 		on:mousedown={(e) => dispatch('mousedown', { e })}
 		on:mouseup={(e) => dispatch('mouseup', { e })}
 		on:mouseenter={() => dispatch('mouseenter')}

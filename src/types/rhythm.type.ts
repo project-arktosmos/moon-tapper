@@ -1,5 +1,96 @@
 import type { ID } from '$types/core.type';
 
+// --- BeatSaver search filter types ---
+
+export type BeatSaverSortOrder = 'Latest' | 'Relevance' | 'Rating' | 'Curated' | 'Random' | 'Duration';
+
+export type BeatSaverLeaderboard = 'All' | 'Ranked' | 'BeatLeader' | 'ScoreSaber';
+
+export type BeatSaverTag =
+	| 'tech'
+	| 'dance-style'
+	| 'speed'
+	| 'balanced'
+	| 'challenge'
+	| 'accuracy'
+	| 'fitness'
+	| 'nightcore'
+	| 'folk-acoustic'
+	| 'kids-family'
+	| 'ambient'
+	| 'funk-disco'
+	| 'jazz'
+	| 'classical-orchestral'
+	| 'soul'
+	| 'speedcore'
+	| 'punk'
+	| 'rb'
+	| 'vocaloid'
+	| 'j-rock'
+	| 'trance'
+	| 'drum-and-bass'
+	| 'comedy-meme'
+	| 'instrumental'
+	| 'hardcore'
+	| 'k-pop'
+	| 'indie'
+	| 'techno'
+	| 'house'
+	| 'video-game-soundtrack'
+	| 'tv-movie-soundtrack'
+	| 'alternative'
+	| 'dubstep'
+	| 'metal'
+	| 'anime'
+	| 'hip-hop-rap'
+	| 'j-pop'
+	| 'dance'
+	| 'rock'
+	| 'pop'
+	| 'electronic';
+
+export interface BeatSaverSearchFilters {
+	sortOrder: BeatSaverSortOrder;
+	tags: BeatSaverTag[];
+	excludeTags: BeatSaverTag[];
+	minBpm: number | null;
+	maxBpm: number | null;
+	minNps: number | null;
+	maxNps: number | null;
+	minDuration: number | null;
+	maxDuration: number | null;
+	minRating: number | null;
+	maxRating: number | null;
+	curated: boolean | null;
+	verified: boolean | null;
+	automapper: boolean | null;
+	from: string | null;
+	to: string | null;
+	leaderboard: BeatSaverLeaderboard | null;
+	pageSize: number;
+}
+
+export const DEFAULT_SEARCH_FILTERS: BeatSaverSearchFilters = {
+	sortOrder: 'Rating',
+	tags: [],
+	excludeTags: [],
+	minBpm: null,
+	maxBpm: null,
+	minNps: null,
+	maxNps: null,
+	minDuration: null,
+	maxDuration: null,
+	minRating: null,
+	maxRating: null,
+	curated: null,
+	verified: null,
+	automapper: null,
+	from: null,
+	to: null,
+	leaderboard: null,
+	pageSize: 20
+};
+
 // --- BeatSaver API types ---
 
 export interface BeatSaverSearchPaginationInfo {
@@ -149,11 +240,37 @@ export const DEFAULT_RHYTHM_GAME_STATE: RhythmGameState = {
 
 // --- Settings ---
 
+export interface LaneBinding {
+	keyboard: string;
+	gamepad: string | null;
+}
+
+export type LaneModeBindings = Record<2 | 3 | 4, Record<number, LaneBinding>>;
+
+export const DEFAULT_LANE_MODE_BINDINGS: LaneModeBindings = {
+	2: {
+		0: { keyboard: 'KeyF', gamepad: null },
+		1: { keyboard: 'KeyJ', gamepad: null }
+	},
+	3: {
+		0: { keyboard: 'KeyF', gamepad: null },
+		1: { keyboard: 'Space', gamepad: null },
+		2: { keyboard: 'KeyJ', gamepad: null }
+	},
+	4: {
+		0: { keyboard: 'KeyD', gamepad: null },
+		1: { keyboard: 'KeyF', gamepad: null },
+		2: { keyboard: 'KeyJ', gamepad: null },
+		3: { keyboard: 'KeyK', gamepad: null }
+	}
+};
+
 export interface RhythmSettings {
 	id: ID;
 	scrollSpeed: number;
 	volume: number;
 	keyBindings: Record<number, string>;
+	laneModeBindings: LaneModeBindings;
 	offset: number;
 }
 
@@ -162,6 +279,7 @@ export const DEFAULT_RHYTHM_SETTINGS: RhythmSettings = {
 	scrollSpeed: 1.0,
 	volume: 0.8,
 	keyBindings: { 0: 'KeyD', 1: 'KeyF', 2: 'KeyJ', 3: 'KeyK' },
+	laneModeBindings: structuredClone(DEFAULT_LANE_MODE_BINDINGS),
 	offset: 0
 };
 
@@ -183,7 +301,7 @@ export interface RhythmScore {
 
 // --- Lane mode ---
 
-export type LaneMode = 3 | 4;
+export type LaneMode = 2 | 3 | 4;
 export const DEFAULT_LANE_MODE: LaneMode = 4;
 
 // --- Game session state ---

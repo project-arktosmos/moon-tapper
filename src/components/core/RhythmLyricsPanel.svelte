@@ -1,6 +1,5 @@
 <script lang="ts">
 	import classNames from 'classnames';
-	import { _ } from 'svelte-i18n';
 	import { lyricsService } from '$services/lyrics.service';
 	import type { LyricsState } from '$types/lyrics.type';
 	import { tick } from 'svelte';
@@ -46,9 +45,9 @@
 
 <div class="flex h-full flex-col overflow-hidden rounded-lg border-2 border-base-300 bg-base-200/80">
 	<div class="flex items-center justify-between border-b border-base-300 px-3 py-2">
-		<h4 class="text-sm font-semibold text-base-content/70">{$_('rhythm.lyrics.title')}</h4>
+		<h4 class="text-sm font-semibold text-base-content/70">Lyrics</h4>
 		{#if lyrics.status === 'success' && lyrics.lyrics?.syncedLyrics}
-			<span class="badge badge-xs badge-primary">{$_('rhythm.lyrics.synced')}</span>
+			<span class="badge badge-xs badge-primary">Synced</span>
 		{/if}
 	</div>
 
@@ -59,21 +58,21 @@
 		{#if lyrics.status === 'loading'}
 			<div class="flex h-full flex-col items-center justify-center">
 				<span class="loading loading-spinner loading-md text-primary"></span>
-				<span class="mt-2 text-sm text-base-content/60">{$_('rhythm.lyrics.fetching')}</span>
+				<span class="mt-2 text-sm text-base-content/60">Fetching lyrics...</span>
 			</div>
 		{:else if lyrics.status === 'not_found'}
 			<div class="flex h-full flex-col items-center justify-center text-base-content/40">
-				<span class="text-sm">{$_('rhythm.lyrics.notFound')}</span>
+				<span class="text-sm">No lyrics found</span>
 			</div>
 		{:else if lyrics.status === 'error'}
 			<div class="flex h-full flex-col items-center justify-center text-error/60">
-				<span class="text-sm">{$_('rhythm.lyrics.error')}</span>
+				<span class="text-sm">Failed to load lyrics</span>
 				<span class="mt-1 text-xs">{lyrics.error}</span>
 			</div>
 		{:else if lyrics.status === 'success' && lyrics.lyrics}
 			{#if lyrics.lyrics.instrumental}
 				<div class="flex h-full flex-col items-center justify-center text-base-content/40">
-					<span class="text-sm">{$_('rhythm.lyrics.instrumental')}</span>
+					<span class="text-sm">Instrumental</span>
 				</div>
 			{:else if lyrics.lyrics.syncedLyrics && lyrics.lyrics.syncedLyrics.length > 0}
 				<div class="space-y-1 py-4">
@@ -102,12 +101,12 @@
 				</div>
 			{:else}
 				<div class="flex h-full flex-col items-center justify-center text-base-content/40">
-					<span class="text-sm">{$_('rhythm.lyrics.notFound')}</span>
+					<span class="text-sm">No lyrics found</span>
 				</div>
 			{/if}
 		{:else}
 			<div class="flex h-full flex-col items-center justify-center text-base-content/30">
-				<span class="text-sm">{$_('rhythm.lyrics.idle')}</span>
+				<span class="text-sm">Lyrics will appear here</span>
 			</div>
 		{/if}
 	</div>

@@ -10,7 +10,7 @@
 
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		{#each routes.filter((r) => r.path !== '/') as route}
-			<a href={route.path} class="card bg-base-200 transition-shadow hover:shadow-lg">
+			<a href={route.path} class="card bg-base-200 transition-shadow hover:shadow-lg active:shadow-lg">
 				<div class="card-body">
 					<h2 class="card-title">{route.name}</h2>
 					<p class="text-sm opacity-60">{route.path}</p>

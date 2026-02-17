@@ -1,7 +1,6 @@
 <script lang="ts">
 	import classNames from 'classnames';
 	import { createEventDispatcher } from 'svelte';
-	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import type { BeatSaverMap, BeatSaverDiff, LaneMode } from '$types/rhythm.type';
@@ -48,7 +47,7 @@
 
 	<div class="flex flex-col items-center gap-2">
 		<p class="text-sm font-semibold uppercase tracking-wide opacity-60">
-			{$_('rhythm.selectDifficulty')}
+			Select Difficulty
 		</p>
 		<div class="flex gap-2">
 			{#each getDiffs() as diff}
@@ -68,7 +67,7 @@
 
 	<div class="flex flex-col items-center gap-2">
 		<p class="text-sm font-semibold uppercase tracking-wide opacity-60">
-			{$_('rhythm.laneMode')}
+			Lane Mode
 		</p>
 		<div class="join">
 			<button
@@ -78,7 +77,7 @@
 				})}
 				onclick={() => dispatch('laneModeChange', { laneMode: 4 })}
 			>
-				{$_('rhythm.lanes4')}
+				4 Lanes
 			</button>
 			<button
 				class={classNames('btn btn-sm join-item', {
@@ -87,14 +86,23 @@
 				})}
 				onclick={() => dispatch('laneModeChange', { laneMode: 3 })}
 			>
-				{$_('rhythm.lanes3')}
+				3 Lanes
+			</button>
+			<button
+				class={classNames('btn btn-sm join-item', {
+					'btn-primary': laneMode === 2,
+					'btn-ghost btn-outline': laneMode !== 2
+				})}
+				onclick={() => dispatch('laneModeChange', { laneMode: 2 })}
+			>
+				2 Lanes
 			</button>
 		</div>
 	</div>
 
 	<div class="flex flex-col items-center gap-3">
 		<Button
-			label={$_('rhythm.play')}
+			label="Play"
 			color={ThemeColors.Primary}
 			size={ThemeSizes.Large}
 			disabled={!lyricsReady}
@@ -103,13 +111,13 @@
 		{#if !lyricsReady}
 			<div class="flex items-center gap-2">
 				<span class="loading loading-spinner loading-sm text-primary"></span>
-				<span class="text-sm opacity-60">{$_('rhythm.lyrics.fetching')}</span>
+				<span class="text-sm opacity-60">Fetching lyrics...</span>
 			</div>
 		{/if}
 	</div>
 
 	<Button
-		label={$_('rhythm.backToBrowse')}
+		label="Back to Browse"
 		color={ThemeColors.Neutral}
 		outline
 		size={ThemeSizes.Small}

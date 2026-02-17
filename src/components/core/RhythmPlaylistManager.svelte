@@ -3,7 +3,6 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import { save } from '@tauri-apps/plugin-dialog';
 	import { listen } from '@tauri-apps/api/event';
-	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
 	import TrackGrid from '$components/core/TrackGrid.svelte';
 	import TrackItem from '$components/core/TrackItem.svelte';
@@ -42,7 +41,7 @@
 		const now = new Date().toISOString();
 		const playlist: RhythmPlaylist = {
 			id: crypto.randomUUID(),
-			name: $_('rhythm.playlists.defaultName'),
+			name: 'New Playlist',
 			tracks: [],
 			createdAt: now,
 			updatedAt: now
@@ -135,7 +134,7 @@
 				rhythmPlaylistsService.add(playlist);
 				importError = null;
 			} catch {
-				importError = $_('rhythm.playlists.importError');
+				importError = 'Failed to import playlist: invalid file format';
 			}
 			input.value = '';
 		};
@@ -204,18 +203,18 @@
 				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
 					<path fill-rule="evenodd" d="M17 10a.75.75 0 0 1-.75.75H5.612l4.158 3.96a.75.75 0 1 1-1.04 1.08l-5.5-5.25a.75.75 0 0 1 0-1.08l5.5-5.25a.75.75 0 1 1 1.04 1.08L5.612 9.25H16.25A.75.75 0 0 1 17 10Z" clip-rule="evenodd" />
 				</svg>
-				{$_('rhythm.playlists.back')}
+				Back to Playlists
 			</button>
 			<h2 class="text-xl font-bold flex-1">{selectedPlaylist.name}</h2>
 			<span class="badge badge-ghost">{selectedPlaylist.tracks.length} tracks</span>
 			{#if lyricsFetchActive}
 				<span class="flex items-center gap-2 text-sm opacity-60">
 					<span class="loading loading-spinner loading-xs"></span>
-					{$_('rhythm.lyrics.fetching')} {lyricsFetchDone}/{lyricsFetchTotal}
+					Fetching lyrics... {lyricsFetchDone}/{lyricsFetchTotal}
 				</span>
 			{:else if selectedPlaylist.tracks.length > 0}
 				<Button
-					label={$_('rhythm.lyrics.fetchAll')}
+					label="Fetch All Lyrics"
 					color={ThemeColors.Accent}
 					size={ThemeSizes.Small}
 					outline
@@ -226,7 +225,7 @@
 
 		{#if selectedPlaylist.tracks.length === 0}
 			<div class="py-12 text-center opacity-60">
-				{$_('rhythm.playlists.emptyPlaylist')}
+				This playlist is empty. Add tracks from the Browse page.
 			</div>
 		{:else}
 			<TrackGrid
@@ -240,7 +239,7 @@
 						class="btn btn-ghost btn-sm text-error"
 						on:click={() => handleRemoveTrack(selectedPlaylist, item.id)}
 					>
-						{$_('rhythm.playlists.removeTrack')}
+						Remove
 					</button>
 				</svelte:fragment>
 			</TrackGrid>
@@ -250,16 +249,16 @@
 	<!-- List view -->
 	<div class="flex flex-col gap-4">
 		<div class="flex items-center justify-between">
-			<h2 class="text-xl font-bold">{$_('rhythm.playlists.title')}</h2>
+			<h2 class="text-xl font-bold">My Playlists</h2>
 			<div class="flex gap-2">
 				<Button
-					label={$_('rhythm.playlists.importPlaylist')}
+					label="Import Playlist"
 					color={ThemeColors.Neutral}
 					size={ThemeSizes.Small}
 					on:click={handleImportClick}
 				/>
 				<Button
-					label={$_('rhythm.playlists.createPlaylist')}
+					label="Create Playlist"
 					color={ThemeColors.Primary}
 					size={ThemeSizes.Small}
 					on:click={handleCreatePlaylist}
@@ -281,13 +280,13 @@
 
 		{#if $playlistsStore.length === 0}
 			<div class="py-12 text-center opacity-60">
-				{$_('rhythm.playlists.noPlaylists')}
+				No playlists yet. Create one to start building your collection.
 			</div>
 		{:else}
 			<div class="grid gap-4">
 				{#each $playlistsStore as playlist (playlist.id)}
 					<div
-						class="card bg-base-200 shadow-sm cursor-pointer transition-colors hover:bg-base-300"
+						class="card bg-base-200 shadow-sm cursor-pointer transition-colors hover:bg-base-300 active:bg-base-300"
 						on:click={() => handleOpenPlaylist(playlist.id)}
 						on:keydown={(e) => e.key === 'Enter' && handleOpenPlaylist(playlist.id)}
 						role="button"
@@ -316,23 +315,23 @@
 								</div>
 								<div class="flex items-center gap-1">
 									{#if confirmDeleteId === playlist.id}
-										<span class="text-sm text-error mr-1">{$_('rhythm.playlists.confirmDelete')}</span>
+										<span class="text-sm text-error mr-1">Delete this playlist?</span>
 										<button
 											class="btn btn-error btn-sm"
 											on:click|stopPropagation={() => handleDeleteConfirm(playlist)}
 										>
-											{$_('rhythm.playlists.deletePlaylist')}
+											Delete
 										</button>
 										<button
 											class="btn btn-ghost btn-sm"
 											on:click|stopPropagation={() => (confirmDeleteId = null)}
 										>
-											{$_('common.cancel')}
+											Cancel
 										</button>
 									{:else}
 										<button
 											class="btn btn-ghost btn-sm"
-											title={$_('rhythm.playlists.exportPlaylist')}
+											title="Export"
 											on:click|stopPropagation={() => handleExportPlaylist(playlist)}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
@@ -342,7 +341,7 @@
 										</button>
 										<button
 											class="btn btn-ghost btn-sm"
-											title={$_('rhythm.playlists.renamePlaylist')}
+											title="Rename"
 											on:click|stopPropagation={() => handleStartRename(playlist)}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
@@ -353,7 +352,7 @@
 										{#if playlist.id !== FAVORITES_PLAYLIST_ID}
 											<button
 												class="btn btn-ghost btn-sm text-error"
-												title={$_('rhythm.playlists.deletePlaylist')}
+												title="Delete"
 												on:click|stopPropagation={() => (confirmDeleteId = playlist.id)}
 											>
 												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">

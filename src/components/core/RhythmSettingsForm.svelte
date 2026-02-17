@@ -1,36 +1,11 @@
 <script lang="ts">
-	import { _ } from 'svelte-i18n';
 	import Button from '$components/core/Button.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { rhythmSettingsService } from '$services/rhythm-settings.service';
 	import { DEFAULT_RHYTHM_SETTINGS } from '$types/rhythm.type';
 
 	let settings = $state(rhythmSettingsService.get());
-	let capturingLane: number | null = $state(null);
 	let saved = $state(false);
-
-	const laneLabels: Record<number, string> = {
-		0: '1',
-		1: '2',
-		2: '3',
-		3: '4'
-	};
-
-	function getKeyLabel(code: string): string {
-		if (code.startsWith('Key')) return code.slice(3);
-		if (code.startsWith('Digit')) return code.slice(5);
-		return code;
-	}
-
-	function handleKeyCapture(e: KeyboardEvent) {
-		if (capturingLane === null) return;
-		e.preventDefault();
-		settings.keyBindings = {
-			...settings.keyBindings,
-			[capturingLane]: e.code
-		};
-		capturingLane = null;
-	}
 
 	function handleSave() {
 		rhythmSettingsService.set(settings);
@@ -46,13 +21,11 @@
 	}
 </script>
 
-<svelte:window on:keydown={handleKeyCapture} />
-
 <div class="flex flex-col gap-8 max-w-lg">
 	<!-- Scroll Speed -->
 	<div class="form-control">
 		<label class="label" for="scroll-speed">
-			<span class="label-text font-semibold">{$_('rhythm.settings.scrollSpeed')}</span>
+			<span class="label-text font-semibold">Scroll Speed</span>
 			<span class="label-text-alt tabular-nums">{settings.scrollSpeed.toFixed(1)}</span>
 		</label>
 		<input
@@ -75,7 +48,7 @@
 	<!-- Volume -->
 	<div class="form-control">
 		<label class="label" for="volume">
-			<span class="label-text font-semibold">{$_('rhythm.settings.volume')}</span>
+			<span class="label-text font-semibold">Volume</span>
 			<span class="label-text-alt tabular-nums">{Math.round(settings.volume * 100)}%</span>
 		</label>
 		<input
@@ -97,7 +70,7 @@
 	<!-- Timing Offset -->
 	<div class="form-control">
 		<label class="label" for="offset">
-			<span class="label-text font-semibold">{$_('rhythm.settings.timingOffset')}</span>
+			<span class="label-text font-semibold">Timing Offset (ms)</span>
 			<span class="label-text-alt tabular-nums">{settings.offset}ms</span>
 		</label>
 		<input
@@ -116,50 +89,33 @@
 		</div>
 	</div>
 
-	<!-- Key Bindings -->
+	<!-- Key Bindings (link to controller page) -->
 	<div class="form-control">
 		<label class="label">
-			<span class="label-text font-semibold">{$_('rhythm.settings.keyBindings')}</span>
+			<span class="label-text font-semibold">Key Bindings</span>
 		</label>
-		<div class="grid grid-cols-4 gap-3">
-			{#each [0, 1, 2, 3] as lane}
-				<div class="flex flex-col items-center gap-1">
-					<span class="text-xs opacity-60">
-						{$_('rhythm.settings.lane')} {laneLabels[lane]}
-					</span>
-					<button
-						class="btn btn-outline btn-sm w-full"
-						class:btn-primary={capturingLane === lane}
-						onclick={() => (capturingLane = capturingLane === lane ? null : lane)}
-					>
-						{#if capturingLane === lane}
-							{$_('rhythm.settings.pressKey')}
-						{:else}
-							{getKeyLabel(settings.keyBindings[lane])}
-						{/if}
-					</button>
-				</div>
-			{/each}
-		</div>
+		<a href="/rhythm/controller" class="btn btn-outline btn-sm w-fit">
+			Configure Bindings
+		</a>
 	</div>
 
 	<!-- Actions -->
 	<div class="flex items-center gap-3">
 		<Button
-			label={$_('common.save')}
+			label="Save"
 			color={ThemeColors.Primary}
 			size={ThemeSizes.Medium}
 			on:click={handleSave}
 		/>
 		<Button
-			label={$_('rhythm.settings.resetDefaults')}
+			label="Reset to Defaults"
 			color={ThemeColors.Neutral}
 			outline
 			size={ThemeSizes.Medium}
 			on:click={handleReset}
 		/>
 		{#if saved}
-			<span class="badge badge-success">{$_('rhythm.settings.saved')}</span>
+			<span class="badge badge-success">Settings saved</span>
 		{/if}
 	</div>
 </div>

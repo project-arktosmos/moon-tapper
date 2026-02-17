@@ -4,6 +4,10 @@
 		"name": "Home"
 	},
 	{
+		"path": "/rhythm/controller",
+		"name": "Controller"
+	},
+	{
 		"path": "/database",
 		"name": "Database"
 	},

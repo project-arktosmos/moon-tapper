@@ -12,8 +12,7 @@ src/
 ├── services/classes/     # State management with localStorage persistence
 ├── types/                # TypeScript type definitions
 ├── utils/                # Pure utility functions
-├── css/                  # Global styles (Tailwind imports)
-└── services/i18n/        # Internationalization
+└── css/                  # Global styles (Tailwind imports)
 ```
 
 ### Path Aliases
@@ -500,22 +499,6 @@ pnpm test           # Run all tests
 pnpm test:ui        # Interactive test UI
 pnpm test:coverage  # Coverage report
 ```
-
----
-
-## i18n (Internationalization)
-
-Use `svelte-i18n` for translations:
-
-```svelte
-<script lang="ts">
-	import { _ } from 'svelte-i18n';
-</script>
-
-<h1>{$_('common.welcome')}</h1><p>{$_('errors.notFound')}</p>
-```
-
-Translations are in `src/services/i18n/locales/`.
 
 ---
 

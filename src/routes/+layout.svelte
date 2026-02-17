@@ -1,8 +1,8 @@
 <script lang="ts">
 	import '../css/app.css';
-	import '$services/i18n';
 	import routes from '$lib/routes.json';
 	import { page } from '$app/stores';
+	import { afterNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { initTheme } from '$services/theme';
 
@@ -11,6 +11,12 @@
 	onMount(() => {
 		initTheme();
 	});
+
+	// Close the mobile drawer after navigating via sidebar links
+	afterNavigate(() => {
+		const drawer = document.getElementById('sidebar-drawer') as HTMLInputElement | null;
+		if (drawer) drawer.checked = false;
+	});
 </script>
 
 <div class="drawer lg:drawer-open">
@@ -18,7 +24,7 @@
 
 	<div class="drawer-content flex flex-col">
 		<!-- Navbar for mobile -->
-		<div class="navbar bg-base-200 lg:hidden">
+		<div class="navbar bg-base-200 pt-safe lg:hidden">
 			<div class="flex-none">
 				<label for="sidebar-drawer" class="btn btn-square btn-ghost drawer-button">
 					<svg
@@ -49,7 +55,7 @@
 
 	<div class="drawer-side">
 		<label for="sidebar-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
-		<aside class="bg-base-200 min-h-full w-64 p-4">
+		<aside class="bg-base-200 min-h-full w-64 p-4 pt-safe">
 			<div class="mb-6">
 				<h2 class="text-xl font-bold">Moon Trainer</h2>
 				<p class="text-sm opacity-60">Navigation</p>

@@ -2,3 +2,16 @@
 @plugin "daisyui" {
 	themes: light, dark --default, cupcake, bumblebee, emerald, corporate, synthwave, retro, cyberpunk, valentine, halloween, garden, forest, aqua, lofi, pastel, fantasy, wireframe, black, luxury, dracula, cmyk, autumn, business, acid, lemonade, night, coffee, winter, dim, nord, sunset;
 }
+
+@utility pt-safe {
+	padding-top: env(safe-area-inset-top, 0px);
+}
+
+@utility pb-safe {
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Eliminate 300ms click delay on mobile/touch devices */
+button, a, [role="button"], input, select, textarea, label {
+	touch-action: manipulation;
+}

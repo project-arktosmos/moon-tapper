@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { _ } from 'svelte-i18n';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -22,10 +21,11 @@
 		RhythmGameState,
 		GameSessionState,
 		RhythmScore,
-		LaneMode
+		LaneMode,
+		LaneBinding
 	} from '$types/rhythm.type';
-	import { DEFAULT_LANE_MODE } from '$types/rhythm.type';
-	import { condenseTo3Lanes } from '$utils/rhythm/condenseLanes';
+	import { DEFAULT_LANE_MODE, DEFAULT_LANE_MODE_BINDINGS } from '$types/rhythm.type';
+	import { condenseTo2Lanes, condenseTo3Lanes } from '$utils/rhythm/condenseLanes';
 
 	let sessionState: GameSessionState = $state('loading');
 	let error: string | null = $state(null);
@@ -57,14 +57,13 @@
 	// Derived game data based on lane mode
 	let gameBeatMap: BeatMap | null = $derived.by(() => {
 		if (!beatMap) return null;
-		return laneMode === 3 ? condenseTo3Lanes(beatMap) : beatMap;
+		if (laneMode === 2) return condenseTo2Lanes(beatMap);
+		if (laneMode === 3) return condenseTo3Lanes(beatMap);
+		return beatMap;
 	});
 
-	let gameKeyBindings: Record<number, string> = $derived.by(() => {
-		if (laneMode === 3) {
-			return { 0: 'KeyF', 1: 'Space', 2: 'KeyJ' };
-		}
-		return settings.keyBindings;
+	let gameKeyBindings: Record<number, LaneBinding> = $derived.by(() => {
+		return settings.laneModeBindings?.[laneMode] ?? DEFAULT_LANE_MODE_BINDINGS[laneMode];
 	});
 
 	// Settings
@@ -171,7 +170,7 @@
 		selectedDifficulty = difficulty;
 
 		try {
-			loadingProgress = $_('rhythm.downloading');
+			loadingProgress = 'Downloading map...';
 			const map = await beatsaverApi.getMapById(mapId);
 			selectedMap = map;
 
@@ -180,7 +179,7 @@
 
 			const extracted = await beatsaverApi.downloadMap(version.downloadURL, map.id);
 
-			loadingProgress = $_('rhythm.parsing');
+			loadingProgress = 'Loading beatmap...';
 			mapInfo = beatsaverAdapter.parseInfoDat(extracted.info_dat);
 			extractedData = extracted;
 			parseDifficulty(selectedDifficulty);
@@ -210,7 +209,7 @@
 	<div role="alert" class="alert alert-error mb-4">
 		<span>{error}</span>
 		<button class="btn btn-sm btn-ghost" onclick={() => (error = null)}>
-			{$_('common.close')}
+			Close
 		</button>
 	</div>
 {/if}
@@ -225,7 +224,7 @@
 			</p>
 		{/if}
 		<Button
-			label={$_('common.cancel')}
+			label="Cancel"
 			color={ThemeColors.Neutral}
 			outline
 			size={ThemeSizes.Small}
