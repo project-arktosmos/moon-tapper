@@ -2,6 +2,7 @@
 	import classNames from 'classnames';
 	import { createEventDispatcher } from 'svelte';
 	import Button from '$components/core/Button.svelte';
+	import LaneBindingsInline from '$components/core/LaneBindingsInline.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import type { BeatSaverMap, BeatSaverDiff, LaneMode, GameMode } from '$types/rhythm.type';
 
@@ -108,6 +109,8 @@
 			</button>
 		</div>
 	</div>
+
+	<LaneBindingsInline {laneMode} {gameMode} />
 
 	<div class="flex flex-col items-center gap-2">
 		<p class="text-sm font-semibold uppercase tracking-wide opacity-60">

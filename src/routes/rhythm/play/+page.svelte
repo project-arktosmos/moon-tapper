@@ -25,7 +25,7 @@
 		LaneBinding,
 		GameMode
 	} from '$types/rhythm.type';
-	import { DEFAULT_LANE_MODE, DEFAULT_LANE_MODE_BINDINGS, DEFAULT_GAME_MODE } from '$types/rhythm.type';
+	import { DEFAULT_LANE_MODE, DEFAULT_LANE_MODE_BINDINGS, DEFAULT_DUEL_LANE_MODE_BINDINGS, DEFAULT_GAME_MODE } from '$types/rhythm.type';
 	import { condenseTo2Lanes, condenseTo3Lanes } from '$utils/rhythm/condenseLanes';
 
 	let sessionState: GameSessionState = $state('loading');
@@ -69,6 +69,16 @@
 
 	let gameKeyBindings: Record<number, LaneBinding> = $derived.by(() => {
 		return settings.laneModeBindings?.[laneMode] ?? DEFAULT_LANE_MODE_BINDINGS[laneMode];
+	});
+
+	let duelKeyBindingsP1: Record<number, LaneBinding> = $derived.by(() => {
+		const duel = settings.duelLaneModeBindings ?? DEFAULT_DUEL_LANE_MODE_BINDINGS;
+		return duel.player1[laneMode] ?? DEFAULT_DUEL_LANE_MODE_BINDINGS.player1[laneMode];
+	});
+
+	let duelKeyBindingsP2: Record<number, LaneBinding> = $derived.by(() => {
+		const duel = settings.duelLaneModeBindings ?? DEFAULT_DUEL_LANE_MODE_BINDINGS;
+		return duel.player2[laneMode] ?? DEFAULT_DUEL_LANE_MODE_BINDINGS.player2[laneMode];
 	});
 
 	// Settings
@@ -295,11 +305,10 @@
 				{audioBase64}
 				scrollSpeed={settings.scrollSpeed}
 				volume={0}
-				keyBindings={gameKeyBindings}
+				keyBindings={duelKeyBindingsP2}
 				offset={settings.offset}
 				{laneMode}
 				compact
-				disableKeyboard
 				onfinish={handlePlayer2Finish}
 			/>
 		</div>
@@ -316,11 +325,10 @@
 				{audioBase64}
 				scrollSpeed={settings.scrollSpeed}
 				volume={settings.volume}
-				keyBindings={gameKeyBindings}
+				keyBindings={duelKeyBindingsP1}
 				offset={settings.offset}
 				{laneMode}
 				compact
-				disableKeyboard
 				onfinish={handlePlayer1Finish}
 			/>
 		</div>

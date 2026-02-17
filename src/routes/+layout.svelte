@@ -6,6 +6,7 @@
 	import { onMount } from 'svelte';
 	import { initTheme } from '$services/theme';
 	import { isTauri } from '$utils/isTauri';
+	import Navbar from '$components/core/Navbar.svelte';
 
 	let { children } = $props();
 
@@ -47,7 +48,7 @@
 				</label>
 			</div>
 			<div class="flex-1">
-				<span class="text-xl font-bold">Moon Trainer</span>
+				<span class="text-xl font-bold">Moon Tapper</span>
 			</div>
 		</div>
 
@@ -61,7 +62,7 @@
 		<label for="sidebar-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
 		<aside class="bg-base-200 min-h-full w-64 p-4 pt-safe">
 			<div class="mb-6">
-				<h2 class="text-xl font-bold">Moon Trainer</h2>
+				<h2 class="text-xl font-bold">Moon Tapper</h2>
 				<p class="text-sm opacity-60">Navigation</p>
 			</div>
 
@@ -95,7 +96,10 @@
 	</div>
 </div>
 {:else}
-<main class="min-h-screen p-6">
-	{@render children?.()}
-</main>
+<div class="min-h-screen flex flex-col">
+	<Navbar />
+	<main class="flex-1 p-6">
+		{@render children?.()}
+	</main>
+</div>
 {/if}

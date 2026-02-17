@@ -265,12 +265,39 @@ export const DEFAULT_LANE_MODE_BINDINGS: LaneModeBindings = {
 	}
 };
 
+export const DEFAULT_DUEL_LANE_MODE_BINDINGS: DuelLaneModeBindings = {
+	player1: structuredClone(DEFAULT_LANE_MODE_BINDINGS),
+	player2: {
+		2: {
+			0: { keyboard: 'KeyE', gamepad: null },
+			1: { keyboard: 'KeyI', gamepad: null }
+		},
+		3: {
+			0: { keyboard: 'KeyE', gamepad: null },
+			1: { keyboard: 'KeyG', gamepad: null },
+			2: { keyboard: 'KeyI', gamepad: null }
+		},
+		4: {
+			0: { keyboard: 'KeyW', gamepad: null },
+			1: { keyboard: 'KeyE', gamepad: null },
+			2: { keyboard: 'KeyI', gamepad: null },
+			3: { keyboard: 'KeyO', gamepad: null }
+		}
+	}
+};
+
+export interface DuelLaneModeBindings {
+	player1: LaneModeBindings;
+	player2: LaneModeBindings;
+}
+
 export interface RhythmSettings {
 	id: ID;
 	scrollSpeed: number;
 	volume: number;
 	keyBindings: Record<number, string>;
 	laneModeBindings: LaneModeBindings;
+	duelLaneModeBindings: DuelLaneModeBindings;
 	offset: number;
 }
 
@@ -280,6 +307,7 @@ export const DEFAULT_RHYTHM_SETTINGS: RhythmSettings = {
 	volume: 0.8,
 	keyBindings: { 0: 'KeyD', 1: 'KeyF', 2: 'KeyJ', 3: 'KeyK' },
 	laneModeBindings: structuredClone(DEFAULT_LANE_MODE_BINDINGS),
+	duelLaneModeBindings: structuredClone(DEFAULT_DUEL_LANE_MODE_BINDINGS),
 	offset: 0
 };
 

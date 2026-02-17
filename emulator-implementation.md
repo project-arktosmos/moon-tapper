@@ -76,7 +76,7 @@ Integrating [rustboyadvance-ng](https://github.com/michelhe/rustboyadvance-ng) G
 ### Modified Files
 - `src-tauri/Cargo.toml` — Added rustboyadvance-core, rustboyadvance-utils, ringbuf, base64
 - `src-tauri/src/lib.rs` — Added emulator module, 5 Tauri commands (load_rom, frame, reset, save_state, load_state), EmulatorHandle with save_dir, save state file I/O
-- `src-tauri/src/main.rs` — Fixed crate name (tauri_svelte_lib → moon_trainer_lib)
+- `src-tauri/src/main.rs` — Fixed crate name (tauri_svelte_lib → moon_tapper_lib)
 - `src/lib/routes.json` — Added /emulator route
 - `src/services/i18n/locales/en.json` — Added emulator translation keys
 

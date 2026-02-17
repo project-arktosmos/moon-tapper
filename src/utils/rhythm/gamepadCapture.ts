@@ -1,6 +1,4 @@
-export type GamepadCaptureCallback = (code: string) => void;
-
-export function startGamepadCapture(onCapture: GamepadCaptureCallback): () => void {
+export function startGamepadCapture(onCapture: (code: string) => void): () => void {
 	let running = true;
 	let prevButtons: boolean[][] = [];
 

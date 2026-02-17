@@ -12,7 +12,7 @@
 <div class="max-w-4xl">
 	<h1 class="mb-4 text-4xl font-bold">Welcome</h1>
 	<p class="mb-8 text-lg opacity-70">
-		Moon Trainer desktop application with auto-generated navigation.
+		Moon Tapper desktop application with auto-generated navigation.
 	</p>
 
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

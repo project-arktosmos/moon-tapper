@@ -1,6 +1,6 @@
 import { ObjectServiceClass } from '$services/classes/object-service.class';
 import type { RhythmSettings, LaneModeBindings, LaneBinding } from '$types/rhythm.type';
-import { DEFAULT_RHYTHM_SETTINGS, DEFAULT_LANE_MODE_BINDINGS } from '$types/rhythm.type';
+import { DEFAULT_RHYTHM_SETTINGS, DEFAULT_LANE_MODE_BINDINGS, DEFAULT_DUEL_LANE_MODE_BINDINGS } from '$types/rhythm.type';
 
 export const rhythmSettingsService = new ObjectServiceClass<RhythmSettings>(
 	'rhythm-settings',
@@ -51,4 +51,13 @@ if (!current.laneModeBindings) {
 		};
 		rhythmSettingsService.set({ ...current, laneModeBindings: migrated });
 	}
+}
+
+// v3 migration: ensure duelLaneModeBindings exists
+const afterMigration = rhythmSettingsService.get();
+if (!afterMigration.duelLaneModeBindings) {
+	rhythmSettingsService.set({
+		...afterMigration,
+		duelLaneModeBindings: structuredClone(DEFAULT_DUEL_LANE_MODE_BINDINGS)
+	});
 }

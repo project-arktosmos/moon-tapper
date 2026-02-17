@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    moon_trainer_lib::run()
+    moon_tapper_lib::run()
 }

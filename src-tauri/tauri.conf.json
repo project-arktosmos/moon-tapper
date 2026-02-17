@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "moon-trainer",
+  "productName": "moon-tapper",
   "version": "0.0.1",
-  "identifier": "com.arktosmos.moon-trainer",
+  "identifier": "com.arktosmos.moon-tapper",
   "build": {
     "beforeDevCommand": "node scripts/generate-routes.js && vite dev",
     "devUrl": "http://localhost:9013",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Moon Trainer",
+        "title": "Moon Tapper",
         "width": 1920,
         "height": 1080,
         "minWidth": 800,
