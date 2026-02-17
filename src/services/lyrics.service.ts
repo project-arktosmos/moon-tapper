@@ -1,6 +1,6 @@
 import { writable, get, type Writable } from 'svelte/store';
 import { browser } from '$app/environment';
-import { listen } from '@tauri-apps/api/event';
+import { isTauri } from '$utils/isTauri';
 import type { LrcLibResponse, Lyrics, LyricsState, SyncedLyricLine } from '$types/lyrics.type';
 import { lyricsApi, type LyricsFetchResult } from '$api/lyrics';
 
@@ -17,12 +17,13 @@ class LyricsService {
 			error: null
 		});
 
-		if (browser) {
+		if (browser && isTauri()) {
 			this.setupEventListener();
 		}
 	}
 
 	private async setupEventListener(): Promise<void> {
+		const { listen } = await import('@tauri-apps/api/event');
 		await listen<LyricsFetchResult>('lyrics:fetch-result', (event) => {
 			const result = event.payload;
 
@@ -69,6 +70,10 @@ class LyricsService {
 		duration?: number
 	): Promise<void> {
 		if (!browser) return;
+		if (!isTauri()) {
+			this.store.set({ status: 'error', lyrics: null, error: 'Lyrics require the desktop app.' });
+			return;
+		}
 
 		const cacheKey = this.getCacheKey(trackName, artistName);
 

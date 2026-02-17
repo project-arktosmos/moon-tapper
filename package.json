@@ -6,6 +6,7 @@
 		"dev": "tauri dev",
 		"dev:android": "pnpm build && tauri android dev",
 		"build": "node scripts/generate-routes.js && vite build",
+		"build:web": "node scripts/generate-routes.js && vite build && node scripts/post-build-web.js",
 		"build:android": "export $(grep -v '^#' .env | xargs) && pnpm build && tauri android build --apk",
 		"preview": "vite preview",
 		"prepare": "node scripts/generate-routes.js && svelte-kit sync || echo ''",

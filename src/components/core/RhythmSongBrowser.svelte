@@ -6,7 +6,6 @@
 	import AdvancedSearchFilters from '$components/core/AdvancedSearchFilters.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { beatsaverApi } from '$api/beatsaver';
-	import { beatsaverCache } from '$api/beatsaver-cache';
 	import { lyricsApi } from '$api/lyrics';
 	import { rhythmPlaylistsService } from '$services/rhythm-playlists.service';
 	import { playlistAdapter } from '$adapters/classes/playlist.adapter';
@@ -111,7 +110,7 @@
 			loadedMaps.map(async (map) => {
 				try {
 					const [downloaded, lyrics] = await Promise.all([
-						beatsaverCache.hasDownloadedMap(map.id),
+						beatsaverApi.hasDownloadedMap(map.id),
 						lyricsApi.cacheHas(map.metadata.songName, map.metadata.songAuthorName)
 					]);
 					results[map.id] = {

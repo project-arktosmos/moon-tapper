@@ -41,6 +41,12 @@ pub fn run() {
             db_query,
             db_execute,
             beatsaver::beatsaver_download,
+            beatsaver::beatsaver_search,
+            beatsaver::beatsaver_browse,
+            beatsaver::beatsaver_get_map,
+            beatsaver::beatsaver_has_download,
+            beatsaver::beatsaver_download_track,
+            beatsaver::beatsaver_fetch_track,
             lyrics::lyrics_cache_check,
             lyrics::lyrics_cache_has,
             lyrics::lyrics_fetch,
@@ -102,6 +108,11 @@ pub fn run() {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             app.manage(lyrics::LyricsQueue { tx });
             lyrics::spawn_lyrics_worker(app.handle().clone(), rx);
+
+            // Initialize track download queue worker
+            let (track_tx, track_rx) = tokio::sync::mpsc::unbounded_channel();
+            app.manage(beatsaver::TrackQueue { tx: track_tx });
+            beatsaver::spawn_track_worker(app.handle().clone(), track_rx);
 
             #[cfg(desktop)]
             {

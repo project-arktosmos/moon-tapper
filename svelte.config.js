@@ -18,6 +18,9 @@ const config = {
 			precompress: false,
 			strict: false // This tells the adapter to ignore dynamic routes
 		}),
+		paths: {
+			base: process.env.BASE_PATH || ''
+		},
 		alias: {
 			$components: 'src/components/*',
 			$utils: 'src/utils/*',

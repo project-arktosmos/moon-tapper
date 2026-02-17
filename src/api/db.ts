@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '$utils/isTauri';
 
 /** Result from a SELECT query */
 export interface QueryResult<T = Record<string, unknown>> {
@@ -47,6 +47,9 @@ export const db = {
 		sql: string,
 		params: unknown[] = []
 	): Promise<QueryResult<T>> {
+		if (!isTauri()) return { columns: [], rows: [] };
+
+		const { invoke } = await import('@tauri-apps/api/core');
 		const result = await invoke<RawQueryResult>('db_query', { sql, params });
 
 		// Transform array rows to objects using column names
@@ -72,6 +75,7 @@ export const db = {
 		sql: string,
 		params: unknown[] = []
 	): Promise<T | null> {
+		if (!isTauri()) return null;
 		const result = await this.query<T>(sql, params);
 		return result.rows[0] ?? null;
 	},
@@ -81,6 +85,8 @@ export const db = {
 	 * Returns rows affected and last insert ID (for INSERTs)
 	 */
 	async execute(sql: string, params: unknown[] = []): Promise<ExecuteResult> {
+		if (!isTauri()) return { rows_affected: 0, last_insert_id: null };
+		const { invoke } = await import('@tauri-apps/api/core');
 		return invoke<ExecuteResult>('db_execute', { sql, params });
 	}
 };

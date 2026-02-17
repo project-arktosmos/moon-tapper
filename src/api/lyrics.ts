@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '$utils/isTauri';
 import type { LrcLibResponse } from '$types/lyrics.type';
 
 export interface LyricsCacheEntry {
@@ -24,6 +24,8 @@ export const lyricsApi = {
 		trackName: string,
 		artistName: string | null
 	): Promise<LyricsCacheEntry | null> {
+		if (!isTauri()) return null;
+		const { invoke } = await import('@tauri-apps/api/core');
 		return invoke<LyricsCacheEntry | null>('lyrics_cache_check', {
 			trackName,
 			artistName
@@ -35,6 +37,8 @@ export const lyricsApi = {
 		trackName: string,
 		artistName: string | null
 	): Promise<LyricsCacheStatus | null> {
+		if (!isTauri()) return null;
+		const { invoke } = await import('@tauri-apps/api/core');
 		return invoke<LyricsCacheStatus | null>('lyrics_cache_has', {
 			trackName,
 			artistName
@@ -48,6 +52,8 @@ export const lyricsApi = {
 		albumName?: string | null,
 		duration?: number
 	): Promise<string> {
+		if (!isTauri()) throw new Error('Lyrics require the desktop app.');
+		const { invoke } = await import('@tauri-apps/api/core');
 		return invoke<string>('lyrics_fetch', {
 			trackName,
 			artistName,
