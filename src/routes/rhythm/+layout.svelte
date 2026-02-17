@@ -1,5 +1,6 @@
 <script lang="ts">
 	import classNames from 'classnames';
+	import { base } from '$app/paths';
 	import { page } from '$app/stores';
 
 	let { children } = $props();
@@ -12,7 +13,7 @@
 		{ path: '/rhythm/settings', label: 'Settings' }
 	];
 
-	let isPlayPage = $derived($page.url.pathname.startsWith('/rhythm/play'));
+	let isPlayPage = $derived($page.url.pathname.startsWith(base + '/rhythm/play'));
 </script>
 
 <div class="mx-auto max-w-6xl">
@@ -27,10 +28,10 @@
 		<div role="tablist" class="tabs tabs-bordered mb-6">
 			{#each tabs as tab}
 				<a
-					href={tab.path}
+					href="{base}{tab.path}"
 					role="tab"
 					class={classNames('tab', {
-						'tab-active': $page.url.pathname === tab.path
+						'tab-active': $page.url.pathname === base + tab.path
 					})}
 				>
 					{tab.label}

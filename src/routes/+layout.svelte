@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../css/app.css';
 	import routes from '$lib/routes.json';
+	import { base } from '$app/paths';
 	import { page } from '$app/stores';
 	import { afterNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -70,18 +71,18 @@
 				{#each routes as route}
 					<li>
 						<a
-							href={route.path}
-							class:active={$page.url.pathname === route.path || (route.children && $page.url.pathname.startsWith(route.path + '/'))}
+							href="{base}{route.path}"
+							class:active={$page.url.pathname === base + route.path || (route.children && $page.url.pathname.startsWith(base + route.path + '/'))}
 						>
 							{route.name}
 						</a>
-						{#if route.children && $page.url.pathname.startsWith(route.path)}
+						{#if route.children && $page.url.pathname.startsWith(base + route.path)}
 							<ul>
 								{#each route.children as child}
 									<li>
 										<a
-											href={child.path}
-											class:active={$page.url.pathname === child.path}
+											href="{base}{child.path}"
+											class:active={$page.url.pathname === base + child.path}
 										>
 											{child.name}
 										</a>

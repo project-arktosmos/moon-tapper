@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import Button from '$components/core/Button.svelte';
 	import { ThemeColors, ThemeSizes } from '$types/core.type';
 	import { rhythmSettingsService } from '$services/rhythm-settings.service';
@@ -94,7 +95,7 @@
 		<label class="label">
 			<span class="label-text font-semibold">Key Bindings</span>
 		</label>
-		<a href="/rhythm/controller" class="btn btn-outline btn-sm w-fit">
+		<a href="{base}/rhythm/controller" class="btn btn-outline btn-sm w-fit">
 			Configure Bindings
 		</a>
 	</div>

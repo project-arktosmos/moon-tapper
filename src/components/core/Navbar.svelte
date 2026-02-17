@@ -1,5 +1,6 @@
 <script lang="ts">
 	import classNames from 'classnames';
+	import { base } from '$app/paths';
 	import { page } from '$app/stores';
 	import routes from '$lib/routes.json';
 
@@ -7,7 +8,7 @@
 	const rhythmGroup = routes.find((r) => r.children);
 
 	$: currentPath = $page.url.pathname;
-	$: isUnderRhythm = currentPath.startsWith('/rhythm');
+	$: isUnderRhythm = currentPath.startsWith(base + '/rhythm');
 </script>
 
 <nav class="navbar bg-base-200 sticky top-0 z-50">
@@ -35,13 +36,13 @@
 				class="menu menu-sm dropdown-content bg-base-200 rounded-box mt-3 w-52 p-2 shadow z-50"
 			>
 				<li>
-					<a href="/" class={classNames({ active: currentPath === '/' })}>Home</a>
+					<a href="{base}/" class={classNames({ active: currentPath === base + '/' })}>Home</a>
 				</li>
 				{#each topRoutes as route}
 					<li>
 						<a
-							href={route.path}
-							class={classNames({ active: currentPath === route.path })}
+							href="{base}{route.path}"
+							class={classNames({ active: currentPath === base + route.path })}
 						>
 							{route.name}
 						</a>
@@ -54,8 +55,8 @@
 							{#each rhythmGroup.children as child}
 								<li>
 									<a
-										href={child.path}
-										class={classNames({ active: currentPath === child.path })}
+										href="{base}{child.path}"
+										class={classNames({ active: currentPath === base + child.path })}
 									>
 										{child.name}
 									</a>
@@ -70,7 +71,7 @@
 
 	<!-- Brand -->
 	<div class="navbar-center lg:navbar-start">
-		<a href="/" class="btn btn-ghost text-xl font-bold normal-case">Moon Tapper</a>
+		<a href="{base}/" class="btn btn-ghost text-xl font-bold normal-case">Moon Tapper</a>
 	</div>
 
 	<!-- Desktop: horizontal links -->
@@ -79,8 +80,8 @@
 			{#each topRoutes as route}
 				<li>
 					<a
-						href={route.path}
-						class={classNames({ active: currentPath === route.path })}
+						href="{base}{route.path}"
+						class={classNames({ active: currentPath === base + route.path })}
 					>
 						{route.name}
 					</a>
@@ -96,9 +97,9 @@
 							{#each rhythmGroup.children as child}
 								<li>
 									<a
-										href={child.path}
+										href="{base}{child.path}"
 										class={classNames({
-											active: currentPath === child.path
+											active: currentPath === base + child.path
 										})}
 									>
 										{child.name}
