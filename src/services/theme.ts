@@ -17,6 +17,10 @@ function applyTheme(theme: string): void {
 }
 
 export function initTheme(): void {
-	const { theme } = themeService.get();
-	applyTheme(theme);
+	applyTheme(themeService.get().theme);
+
+	// Re-apply when store updates (handles async hydration from Tauri store)
+	themeService.store.subscribe((config) => {
+		applyTheme(config.theme);
+	});
 }
